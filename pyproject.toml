@@ -8,8 +8,8 @@ dynamic = ["version"]
 description = "QTGMC deinterlacer for archival video with a Qt6 GUI (Arch Linux)"
 readme = { text = "qtgmc-6UI: QTGMC deinterlacing (VapourSynth) with a PySide6 GUI and a scriptable CLI.", content-type = "text/plain" }
 requires-python = ">=3.12"
-license = "GPL-3.0-or-later"
-authors = [{ name = "Jogai" }]
+license = "GPL-2.0-only"
+authors = [{ name = "jogai" }]
 # Runtime dependencies.  Packages that Arch provides (vapoursynth, pyside6,
 # numpy, psutil, rich, typing_extensions) are declared by the PKGBUILD and
 # excluded from uv resolution below, so uv.lock only holds the bundled
@@ -24,6 +24,7 @@ qtgmc-6ui = "qtgmc_6ui.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/jogai/qtgmc-6ui"
+Repository = "https://github.com/jogai/qtgmc-6ui"
 
 [tool.hatch.version]
 path = "src/qtgmc_6ui/__init__.py"
