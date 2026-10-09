@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 from fractions import Fraction
 
 import pytest
@@ -17,12 +18,13 @@ def masters(tmp_path_factory):
     """Memoised master encodes: (clip name, rate, extra args) -> path."""
     base = tmp_path_factory.mktemp("masters")
     cache: dict[tuple, object] = {}
+    counter = itertools.count()
 
     def make(name: str, rate: str = "double", *extra: str, env=None, out_name: str | None = None):
         key = (name, rate, extra, tuple(sorted((env or {}).items())), out_name)
         if key not in cache:
             spec = NAMED[name]
-            out = base / f"{len(cache)}" / (out_name or "master.mkv")
+            out = base / f"m{next(counter)}" / (out_name or "master.mkv")
             out.parent.mkdir()
             deint_master(get_clip(name), out, *extra, rate=rate,
                          field_order="tff" if spec.kind == "tff" else "bff", env=env)
