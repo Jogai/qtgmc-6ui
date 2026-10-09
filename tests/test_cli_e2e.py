@@ -92,3 +92,30 @@ def test_run_job_stdin_with_view(reference_clip: Path, tmp_path: Path) -> None:
     kinds = {o["kind"]: o for o in res["outputs"]}
     assert kinds["master"]["path"] == str(out) and kinds["master"]["frames"] == 548
     assert Path(kinds["view"]["path"]).is_file()
+
+
+@pytest.mark.needs_qtgmc
+@pytest.mark.slow
+def test_no_master_reference(reference_clip: Path, tmp_path: Path) -> None:
+    """--no-master: only the viewing copy remains; a SIGKILLed run's temp master is removed by
+    the next run in the same folder."""
+    before = _sha(reference_clip)
+    out = tmp_path / "o"
+    args = [*CLI, "deint", str(reference_clip), "--out-dir", str(out), "--view", "mp4-h264-aac", "--no-master", "--events"]
+    p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, text=True, env=_env(tmp_path))
+    assert p.stdout is not None
+    for line in p.stdout:
+        ev = Event.from_json(line)
+        if ev and ev.ev == "progress" and ev.data["stage"] == "master" and ev.data["done"] >= 20:
+            break
+    p.kill()
+    p.wait(30)
+    assert any(".nomaster." in x.name for x in out.iterdir())  # crash leftovers (hidden)
+    r = subprocess.run(args, capture_output=True, text=True, timeout=1800, env=_env(tmp_path))
+    assert r.returncode == 0, r.stderr[-3000:]
+    evs = parse_events(r.stdout)
+    assert evs[0].data["outputs"] == [str(out / "test_input.deint.mp4-h264-aac.mp4")]
+    res = [e for e in evs if e.ev == "result"][0].data["data"]
+    assert [(o["kind"], o["frames"]) for o in res["outputs"]] == [("view", 548)]
+    assert sorted(x.name for x in out.iterdir()) == ["test_input.deint.mp4-h264-aac.mp4"]
+    assert _sha(reference_clip) == before

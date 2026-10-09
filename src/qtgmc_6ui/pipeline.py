@@ -505,9 +505,29 @@ def run_job(job: JobSpec, *, emitter: Emitter, cancel: CancelToken) -> JobResult
     result.warnings.extend(qtgmc.fidelity_warnings(eff))
     result.warnings.extend(_audio_flags(analysis)[1])
 
-    master_path = master_output_path(job)
+    from . import jobs as jobs_mod
+
+    keep_master = job.keep_master or job.skip_master
+    for p in jobs_mod.remove_stale_temp_masters(job.output_dir or str(Path(job.input).parent)):
+        emitter.log("app", f"removed a temporary master left by an interrupted run: {p}")
+    if not keep_master:
+        jobs_mod.check_master_choice(job)
+        master_path = jobs_mod.temp_master_path(job)
+    else:
+        master_path = master_output_path(job)
+    try:
+        return _run_stages(job, analysis, result, master_path, keep_master, emitter=emitter, cancel=cancel, t0=t0)
+    finally:
+        if not keep_master:  # success, error or cancel: the temporary master never survives
+            _remove(master_path)
+            _remove(partial_path(master_path))
+
+
+def _run_stages(job: JobSpec, analysis: AnalysisResult, result: JobResult, master_path: str, keep_master: bool, *,
+                emitter: Emitter, cancel: CancelToken, t0: float) -> JobResult:
     stage_total = 3 + len(job.views)
     kept: list[str] = []
+    master_frames: int | None = None
     if job.skip_master:
         if not os.path.isfile(master_path):
             raise InputError(ErrorCode.INPUT_NOT_FOUND, f"master not found: {master_path}", "skip_master needs an existing master", {"path": master_path})
@@ -516,8 +536,10 @@ def run_job(job: JobSpec, *, emitter: Emitter, cancel: CancelToken) -> JobResult
         collect = _CollectWarnings(emitter)
         mfile = run_master(job, analysis, master_path, emitter=collect, cancel=cancel, stage_total=stage_total)
         result.warnings.extend(collect.lines)
-        result.outputs.append(mfile)
-        kept.append(master_path)
+        master_frames = mfile.frames
+        if keep_master:
+            result.outputs.append(mfile)
+            kept.append(master_path)
     if job.views:
         from . import ffprobe, profiles, viewcopy
 
@@ -525,7 +547,7 @@ def run_job(job: JobSpec, *, emitter: Emitter, cancel: CancelToken) -> JobResult
         out_dir = job.output_dir or str(Path(job.input).parent)
         for i, view in enumerate(job.views):
             profile = profiles.load(view.profile)
-            out_path = view.output or viewcopy.view_output_path(master_path, profile, job.name_template, out_dir)
+            out_path = view.output or viewcopy.view_output_path(job.input, profile, job.name_template, out_dir)
             emitter.stage("view", 4 + i, stage_total, f"viewing copy: {profile.name or profile.id}")
             try:
                 vfile = viewcopy.run_view(master_path, mprobe, profile, out_path, emitter=emitter, cancel=cancel, overwrite=job.overwrite)
@@ -534,7 +556,7 @@ def run_job(job: JobSpec, *, emitter: Emitter, cancel: CancelToken) -> JobResult
             result.outputs.append(vfile)
             kept.append(out_path)
     result.elapsed_s = time.monotonic() - t0
-    frames = next((o.frames for o in result.outputs if o.kind == "master" and o.frames), None)
+    frames = master_frames
     if frames and result.elapsed_s:
         result.average_fps = round(frames / result.elapsed_s, 2)
     return result
