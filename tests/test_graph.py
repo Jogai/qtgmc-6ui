@@ -6,12 +6,11 @@ import os
 
 import pytest
 
+from helpers_fidelity import compare_fields
+from helpers_wpb import reference_analysis
 from qtgmc_6ui import graph, vsenv
 from qtgmc_6ui.errors import BlockedError, ErrorCode, InputError
 from qtgmc_6ui.models import FieldOrder, FieldOrderChoice, MasterSettings, Preset, RateMode
-
-from helpers_fidelity import compare_fields
-from helpers_wpb import reference_analysis
 
 
 def test_resolve_field_order_and_preset() -> None:

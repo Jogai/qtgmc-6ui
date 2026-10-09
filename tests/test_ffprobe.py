@@ -10,10 +10,9 @@ from pathlib import Path
 
 import pytest
 
+from conftest import REFERENCE_DURATION_S, REFERENCE_FRAMES
 from qtgmc_6ui import ffprobe
 from qtgmc_6ui.errors import ComponentError, ErrorCode, InputError
-
-from conftest import REFERENCE_DURATION_S, REFERENCE_FRAMES
 
 # ffprobe -v error -print_format json -show_format -show_streams test_input.avi  (ffmpeg n9.0.2)
 REF_JSON = json.loads(r"""

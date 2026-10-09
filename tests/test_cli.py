@@ -506,7 +506,6 @@ def test_lost_reader_is_a_cancel(driver: Path, tmp_path: Path, clip: Path) -> No
 def test_failed_view_keeps_finished_master(driver: Path, tmp_path: Path, clip: Path) -> None:
     out = tmp_path / "m.mkv"
     r = run_cli(driver, tmp_path, "deint", str(clip), "-o", str(out), "--view", "v1", "--events", cfg={"fail_view": True})
-    evs = parse_events(r.stdout)
     assert r.returncode == 6 and out.exists()
     assert not (tmp_path / "clip ü.deint.v1.mp4").exists()
 

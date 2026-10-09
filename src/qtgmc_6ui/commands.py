@@ -24,7 +24,15 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 from . import jobs, runtime
-from .errors import CancelledError, ErrorCode, ExitCode, InputError, OutputError, QtgmcError, UsageError
+from .errors import (
+    CancelledError,
+    ErrorCode,
+    ExitCode,
+    InputError,
+    OutputError,
+    QtgmcError,
+    UsageError,
+)
 from .events import Emitter, JsonLinesSink, NullSink, TextSink
 from .models import (
     AnalysisResult,

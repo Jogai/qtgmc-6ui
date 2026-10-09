@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
+from helpers_fidelity import compare_fields
 from qtgmc_6ui import qtgmc, vsenv
 from qtgmc_6ui.errors import ComponentError, ErrorCode
 from qtgmc_6ui.models import ChromaMode, FieldOrder, MasterSettings, Preset, RateMode
 
-from helpers_fidelity import compare_fields
 
 # ----------------------------------------------------------------------------- pure
 def test_preset_table_complete() -> None:

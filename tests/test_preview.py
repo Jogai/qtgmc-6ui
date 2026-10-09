@@ -176,7 +176,7 @@ def test_output_window_maps_to_source_frame(reference_clip: Path, tmp_path: Path
     frame N's original field lines (lossless, BFF: first output = bottom field lines)."""
     import numpy as np
 
-    from qtgmc_6ui.models import FieldOrder, MasterSettings, PreviewMode, PreviewRequest, Preset
+    from qtgmc_6ui.models import FieldOrder, MasterSettings, Preset, PreviewMode, PreviewRequest
 
     monkeypatch.setenv("QTGMC6UI_CACHE_DIR", str(tmp_path / "cache"))
     rend = preview.Renderer()

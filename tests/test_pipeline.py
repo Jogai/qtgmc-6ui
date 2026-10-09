@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+from helpers_fidelity import compare_files
+from helpers_wpb import reference_analysis, synth_analysis
 from qtgmc_6ui import pipeline, vsenv
 from qtgmc_6ui.errors import BlockedError, CancelledError, ErrorCode, ExitCode, OutputError
 from qtgmc_6ui.events import Emitter, Event
@@ -26,9 +28,6 @@ from qtgmc_6ui.models import (
     RecommendedAction,
 )
 from qtgmc_6ui.runtime import CancelToken
-
-from helpers_fidelity import compare_files
-from helpers_wpb import reference_analysis, synth_analysis
 
 
 class Recorder:
@@ -429,7 +428,7 @@ def test_partial_is_hidden_and_stale_partial_is_cleaned(env: Path, clips: dict[s
 def test_sigkill_leaves_no_master_and_no_ffmpeg(env: Path, reference_clip: Path) -> None:
     out = env / "killed.deint.mkv"
     partial = pipeline.partial_path(str(out))
-    script = (
+    script = (  # noqa: UP031
         "import sys; sys.path.insert(0, %r)\n"
         "from qtgmc_6ui import pipeline\nfrom qtgmc_6ui.events import Emitter\nfrom qtgmc_6ui.runtime import CancelToken\n"
         "from qtgmc_6ui.models import JobSpec, MasterSettings, Preset\nfrom helpers_wpb import reference_analysis\n"

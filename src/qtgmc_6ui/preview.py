@@ -407,8 +407,8 @@ def serve(path: str, stdin: IO[str], stdout: IO[str]) -> int:
     stdout (events.py format): ``start``, then ``result{data:{kind:"info", ...source_info}}``,
     then per request ``result{data:{kind:"frame", id, ...PreviewResult}}`` or
     ``error{id, code, message, hint, details, exit_code}``; ``done{exit_code}`` last."""
-    from .events import Emitter, JsonLinesSink
     from .errors import ExitCode
+    from .events import Emitter, JsonLinesSink
 
     em = Emitter(JsonLinesSink(stdout))
     em.start("preview-serve", path, [])

@@ -232,7 +232,7 @@ def render(text: str, project_sha: str | None = None) -> str:
                          re.S | re.M)
         if not pat.search(text):
             raise SystemExit(f"sync-pkgbuild: block '{name}' missing in PKGBUILD")
-        text = pat.sub(lambda m: m.group(1) + body + "\n" + m.group(2), text)
+        text = pat.sub(lambda m, body=body: m.group(1) + body + "\n" + m.group(2), text)
     return text
 
 

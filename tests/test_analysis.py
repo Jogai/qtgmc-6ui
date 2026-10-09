@@ -14,8 +14,8 @@ from fractions import Fraction
 from pathlib import Path
 
 import pytest
-from conftest import REFERENCE_FRAMES
 
+from conftest import REFERENCE_FRAMES
 from qtgmc_6ui import analysis, idet, telecine
 from qtgmc_6ui import ffprobe as ffprobe_mod
 from qtgmc_6ui.errors import ErrorCode, InputError

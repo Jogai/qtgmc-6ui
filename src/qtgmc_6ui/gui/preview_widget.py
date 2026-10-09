@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import os
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeySequence, QPixmap, QShortcut

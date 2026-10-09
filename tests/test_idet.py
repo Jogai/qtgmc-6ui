@@ -8,11 +8,10 @@ from pathlib import Path
 
 import pytest
 
+from conftest import REFERENCE_FRAMES
 from qtgmc_6ui import idet
 from qtgmc_6ui.errors import ErrorCode, InputError
 from qtgmc_6ui.models import IdetCounts, RepeatCounts
-
-from conftest import REFERENCE_FRAMES
 
 # ffmpeg -hide_banner -nostats -i test_input.avi -vf idet -an -f null -   (complete stderr)
 REF_STDERR = """\

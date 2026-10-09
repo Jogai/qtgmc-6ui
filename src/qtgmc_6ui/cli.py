@@ -37,7 +37,6 @@ from . import __version__
 from .errors import ExitCode, QtgmcError
 from .models import ChromaMode, FieldOrderChoice, Preset, PreviewMode, RateMode
 
-
 EPILOG = """examples:
   qtgmc-6ui analyze clip.avi
   qtgmc-6ui deint clip.avi --view mp4-h264-aac
@@ -244,7 +243,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             e = internal_error(exc)
         if getattr(args, "events", False):
-            from .events import JsonLinesSink, Emitter
+            from .events import Emitter, JsonLinesSink
 
             em = Emitter(JsonLinesSink())
             em.error(e.to_dict())

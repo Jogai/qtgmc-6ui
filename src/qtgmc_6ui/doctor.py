@@ -28,7 +28,16 @@ from typing import Any
 
 from . import __version__, buildinfo, paths, qtgmc, vsenv
 from .errors import ComponentError, ErrorCode
-from .models import BuildInfo, DoctorCheck, DoctorReport, FieldOrder, MasterSettings, Preset, Status, ToolInfo
+from .models import (
+    BuildInfo,
+    DoctorCheck,
+    DoctorReport,
+    FieldOrder,
+    MasterSettings,
+    Preset,
+    Status,
+    ToolInfo,
+)
 
 ENV_KEYS = ("LANG", "LC_ALL", "LC_CTYPE", "PYTHONUTF8", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "QT_QPA_PLATFORM",
             "VAPOURSYNTH_EXTRA_PLUGIN_PATH", "QTGMC6UI_PLUGIN_DIR", "QTGMC6UI_BUILD_INFO", "QTGMC6UI_CONFIG_DIR",

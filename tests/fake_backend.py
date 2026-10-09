@@ -18,7 +18,6 @@ Run as ``python tests/fake_backend.py <subcommand> ...``; the GUI uses it when
 
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import signal

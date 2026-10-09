@@ -8,7 +8,6 @@ field changes meaning; adding optional fields with defaults is not a bump.
 
 from __future__ import annotations
 
-import dataclasses
 import types
 import typing
 from dataclasses import dataclass, field, fields, is_dataclass

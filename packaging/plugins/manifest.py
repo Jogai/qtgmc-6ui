@@ -73,7 +73,7 @@ def main(argv: list[str]) -> int:
             print(f"{c['name']}\t{s['filename']}\t{s['url']}\t{s['sha256']}")
     elif cmd == "pkgbuild":
         comps = select(data, args)
-        for c, s, wheel in all_sources(comps):
+        for c, s, _wheel in all_sources(comps):
             print(f"source+=({q(s['filename'] + '::' + s['url'])})  # {c['name']}")
             print(f"sha256sums+=({q(s['sha256'])})")
             print(f"noextract+=({q(s['filename'])})")

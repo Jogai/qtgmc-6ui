@@ -113,9 +113,8 @@ def parse_idet_summary(stderr: str) -> tuple[IdetCounts, IdetCounts, RepeatCount
 
 def parse_ffmpeg_stats(stderr: str) -> dict[str, float] | None:
     """{'frames', 'time_s'} from ffmpeg's final ``frame=... time=HH:MM:SS.ss`` line, else None."""
-    m = None
-    for m in _RE_STATS.finditer(stderr):
-        pass
+    matches = list(_RE_STATS.finditer(stderr))
+    m = matches[-1] if matches else None
     if not m:
         return None
     h, mi, sec = int(m.group(2)), int(m.group(3)), float(m.group(4))
