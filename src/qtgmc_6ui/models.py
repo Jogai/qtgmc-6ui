@@ -307,6 +307,15 @@ class Recommendation(Serializable):
 
 
 @dataclass
+class AnalysisWarning(Serializable):
+    """Coded, machine-readable warning about the source (e.g. ``variable_frame_rate``)."""
+
+    code: str
+    message: str
+    hint: str = ""
+
+
+@dataclass
 class AnalysisResult(Serializable):
     schema: int = ANALYSIS_SCHEMA
     input: str = ""
@@ -325,6 +334,7 @@ class AnalysisResult(Serializable):
     sampled_all_frames: bool = False
     took_s: float = 0.0
     tool_versions: dict[str, str] = field(default_factory=dict)  # {"ffmpeg": "n9.0.2", ...}
+    warnings: list[AnalysisWarning] = field(default_factory=list)  # source problems (codes: variable_frame_rate, ...)
 
 
 # --------------------------------------------------------------------------- jobs
