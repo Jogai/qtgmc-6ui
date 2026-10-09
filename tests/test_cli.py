@@ -60,7 +60,9 @@ def fake_analyze(path, emitter=None, **kw):
 def fake_run_job(job, *, emitter, cancel):
     if CFG.get("crash"):
         raise RuntimeError("kaboom")
-    outs = [("master", job.master_output, None)] + [("view", v.output, v.profile) for v in job.views]
+    from qtgmc_6ui import jobs as _jobs
+    mpath = job.master_output if job.keep_master else _jobs.temp_master_path(job)
+    outs = [("master", mpath, None)] + [("view", v.output, v.profile) for v in job.views]
     done = []
     for idx, (kind, out, prof) in enumerate(outs):
         emitter.stage(kind, idx, len(outs), prof or kind)
@@ -85,6 +87,9 @@ def fake_run_job(job, *, emitter, cancel):
             time.sleep(CFG.get("cleanup_delay", 0))
             raise CancelledError(runtime.remove_partial([out]), [d.path for d in done])
         done.append(OutputFile(kind=kind, path=out, profile=prof, frames=n, size_bytes=os.path.getsize(out)))
+    if not job.keep_master:
+        os.unlink(mpath)
+        done = [d for d in done if d.kind != "master"]
     return JobResult(input=job.input, analysis=job.analysis, outputs=done, elapsed_s=0.1, average_fps=10.0,
                      effective_master=job.master)
 
@@ -523,3 +528,41 @@ def test_hard_exit_removes_hidden_partial(driver: Path, tmp_path: Path, clip: Pa
     rest, _ = p.communicate(timeout=30)
     evs = parse_events("".join(head) + rest)
     assert p.returncode == 130 and str(part) in evs[-2].data["removed"] and not part.exists()
+
+
+# --------------------------------------------------------------------------- --no-master
+def test_no_master_contract(driver: Path, tmp_path: Path, clip: Path) -> None:
+    out = tmp_path / "o"
+    r = run_cli(driver, tmp_path, "deint", str(clip), "--no-master", "--json")
+    e = json.loads(r.stdout)["error"]
+    assert r.returncode == 2 and e["code"] == "usage" and "--view" in e["hint"] and e["details"]["reason"] == "no_master_without_view"
+    r = run_cli(driver, tmp_path, "deint", str(clip), "--no-master", "--view", "v1", "-o", str(tmp_path / "m.mkv"), "--json")
+    assert r.returncode == 2 and json.loads(r.stdout)["error"]["details"]["reason"] == "no_master_with_output"
+    r = run_cli(driver, tmp_path, "deint", str(clip), "--no-master", "--view", "v1", "--out-dir", str(out), "--dry-run", "--json")
+    plan = json.loads(r.stdout)
+    view = str(out / "clip ü.deint.v1.mp4")
+    assert r.returncode == 0 and plan["outputs"] == [view] and plan["keep_master"] is False and plan["master"] is None
+    assert Path(plan["temp_master"]).name.startswith(".clip ü.deint.nomaster.") and plan["temp_master"].endswith(".tmp.mkv")
+    assert Path(plan["temp_master"]).parent == out and not out.exists()
+    r = run_cli(driver, tmp_path, "deint", str(clip), "--no-master", "--view", "v1", "--out-dir", str(out), "--events")
+    evs = parse_events(r.stdout)
+    assert r.returncode == 0 and evs[0].data["outputs"] == [view]
+    assert any(e.ev == "log" and "temporary" in e.data["line"] for e in evs)
+    res = [e for e in evs if e.ev == "result"][0].data["data"]
+    assert [o["kind"] for o in res["outputs"]] == ["view"]
+    assert sorted(x.name for x in out.iterdir()) == ["clip ü.deint.v1.mp4"]
+    # save-job round trip carries keep_master
+    r = run_cli(driver, tmp_path, "deint", str(clip), "--no-master", "--view", "v1", "--save-job", "-")
+    assert json.loads(r.stdout)["keep_master"] is False
+
+
+def test_no_master_cancel_removes_temp_master(driver: Path, tmp_path: Path, clip: Path) -> None:
+    out = tmp_path / "o"
+    p = _popen(driver, tmp_path, "deint", str(clip), "--no-master", "--view", "v1", "--out-dir", str(out), "--events", cfg={"frames": 5000})
+    head, _ = _master_running(p)
+    assert any(".nomaster." in x.name for x in out.iterdir())
+    p.send_signal(signal.SIGTERM)
+    rest, _ = p.communicate(timeout=30)
+    evs = parse_events("".join(head) + rest)
+    assert p.returncode == 130 and evs[-2].ev == "cancelled"
+    assert list(out.iterdir()) == [] if out.exists() else True

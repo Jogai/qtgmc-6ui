@@ -276,14 +276,17 @@ class OutputGuard:
     path (second Ctrl-C), where it emits ``cancelled`` + ``done{130}`` itself.
 
     Outputs are finished in order (master, then views); an output counts as finished once
-    the next ``view`` stage has started, and finished outputs are never removed."""
+    the next ``view`` stage has started, and finished outputs are never removed.  ``temp``
+    files (the --no-master temporary master) are never finished: always removed."""
 
-    def __init__(self, ctx: Ctx, planned: list[str]) -> None:
+    def __init__(self, ctx: Ctx, planned: list[str], *, temp: list[str] | None = None, has_master: bool = True) -> None:
         self.ctx = ctx
         self.views_started = 0
+        self.has_master = has_master
         ctx.sink.observers.append(self._observe)
         self.planned = [p for p in planned if p]
-        self.files = self.planned + [x for p in self.planned for x in partial_names(p)]
+        temp = [p for p in (temp or []) if p]
+        self.files = self.planned + temp + [x for p in self.planned + temp for x in partial_names(p)]
         self.before = {p: _stat(p) for p in self.files}
         self.created_dirs: list[str] = []
         self.kept: list[str] = []
@@ -311,7 +314,9 @@ class OutputGuard:
     def finished(self) -> list[str]:
         """Outputs whose stage is over: the master once the first view starts, and so on
         (single-output commands: none until the result)."""
-        return self.planned[: self.views_started] if len(self.planned) > 1 else []
+        if len(self.planned) <= 1:
+            return []
+        return self.planned[: self.views_started if self.has_master else max(0, self.views_started - 1)]
 
     def cleanup(self, err: CancelledError | None = None) -> tuple[list[str], list[str]]:
         removed = list((err.details.get("removed") if err else None) or [])
@@ -425,14 +430,18 @@ def _synth_master_probe(a: AnalysisResult, settings: MasterSettings, path: str) 
 
 
 def _dry_run_plan(job: JobSpec, a: AnalysisResult, outputs: list[str], warnings: list[str], profs: list[Any]) -> dict[str, Any]:
-    plan: dict[str, Any] = {"dry_run": True, "job": job.to_dict(), "outputs": outputs, "warnings": warnings, "notes": []}
+    temp = None if job.keep_master or job.skip_master else jobs.temp_master_path(job)
+    master_file = temp or job.master_output or ""
+    plan: dict[str, Any] = {"dry_run": True, "job": job.to_dict(), "outputs": outputs, "warnings": warnings, "notes": [],
+                            "keep_master": job.keep_master, "master": job.master_output if job.keep_master else None,
+                            "temp_master": temp}
     plan["job"]["analysis"] = None  # the analysis is reported separately
     plan["analysis"] = a.to_dict()
     try:
         from . import master
 
         col = job.master.colorimetry_override or a.colorimetry
-        plan["master_command"] = master.master_command(job.input, job.master_output or "", a.probe.video.sar, col, overwrite=job.overwrite)
+        plan["master_command"] = master.master_command(job.input, master_file, a.probe.video.sar, col, overwrite=job.overwrite)
     except Exception as e:  # noqa: BLE001 - a plan is best effort
         plan["notes"].append(f"master command unavailable: {internal_error(e).message}")
     try:
@@ -448,13 +457,13 @@ def _dry_run_plan(job: JobSpec, a: AnalysisResult, outputs: list[str], warnings:
     except Exception:  # noqa: BLE001
         pass
     views = []
-    mp = _synth_master_probe(a, job.master, job.master_output or "")
+    mp = _synth_master_probe(a, job.master, master_file)
     for v, prof in zip(job.views, profs, strict=True):
         entry: dict[str, Any] = {"profile": prof.id, "output": v.output}
         try:
             from . import viewcopy
 
-            entry["commands"] = viewcopy.build_commands(job.master_output or "", mp, prof, v.output or "", overwrite=job.overwrite)
+            entry["commands"] = viewcopy.build_commands(master_file, mp, prof, v.output or "", overwrite=job.overwrite)
         except Exception as e:  # noqa: BLE001
             entry["note"] = f"commands unavailable: {internal_error(e).message}"
         views.append(entry)
@@ -467,6 +476,8 @@ def _plan_text(plan: dict[str, Any]) -> str:
 
     lines = ["dry run: nothing was written", "outputs:"] + [f"  {o}" for o in plan["outputs"]]
     lines += [f"warning: {w}" for w in plan.get("warnings", [])]
+    if plan.get("temp_master"):
+        lines.append(f"no master kept: temporary master {plan['temp_master']} is deleted after the viewing copies")
     if plan.get("master_command"):
         lines += ["master (y4m from VapourSynth on stdin):", "  " + shlex.join(plan["master_command"])]
     for v in plan.get("views", []):
@@ -502,13 +513,22 @@ def execute_job(ctx: Ctx, job: JobSpec, command: str, *, dry_run: bool = False) 
         profs = jobs.resolve_profiles(job) if job.views else []
         planned = jobs.plan_outputs(job, profs)
         jobs.check_job(job, planned)
-        guard = OutputGuard(ctx, planned)
+        temp_master = None if job.keep_master or job.skip_master else jobs.temp_master_path(job)
+        guard = OutputGuard(ctx, planned, temp=[temp_master] if temp_master else None, has_master=job.keep_master)
         ctx.em.start(command, job.input, planned)
         if job.analysis is None:
             job.analysis = run_cancellable(ctx.token, lambda: _analyze(job.input, ctx.em), em=ctx.em)
         warnings = jobs.check_blocked(job.analysis, job.master, job.force)
         for w in warnings:
             ctx.em.warning("forced" if w.startswith("--force") else "field_order_override", w)
+        if not job.skip_master:
+            space = jobs.disk_space_warning(job, job.analysis)
+            if space:
+                warnings.append(space)
+                ctx.em.warning("disk_space", space, "free some space or choose another output folder")
+        if temp_master:
+            ctx.em.log("app", f"no master kept: the lossless master is encoded to the temporary file {temp_master} "
+                       "for the viewing copies and deleted afterwards")
         if dry_run:
             plan = _dry_run_plan(job, job.analysis, planned, warnings, profs)
             return ctx.result(plan, _plan_text(plan))

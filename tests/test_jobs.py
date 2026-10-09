@@ -231,3 +231,47 @@ def test_interlaced_and_override_warning() -> None:
     w = jobs.check_blocked(a, MasterSettings(field_order=FieldOrderChoice.TFF), force=False)
     assert len(w) == 1 and "override" in w[0]
     assert jobs.effective_field_order(a, MasterSettings()) == FieldOrder.BFF
+
+
+def test_no_master_rules_and_plan(tmp_path: Path) -> None:
+    with pytest.raises(UsageError) as ei:
+        jobs.job_from_args(_args(str(tmp_path / "a.avi"), "--no-master"))
+    assert ei.value.details["reason"] == "no_master_without_view"
+    with pytest.raises(UsageError):
+        jobs.job_from_args(_args(str(tmp_path / "a.avi"), "--no-master", "--view", "x", "-o", "m.mkv"))
+    j = jobs.job_from_args(_args(str(tmp_path / "a.avi"), "--no-master", "--view", "x"))
+    assert j.keep_master is False
+    outs = jobs.plan_outputs(j, [Profile(id="x", extension="mp4")])
+    assert outs == [str(tmp_path / "a.deint.x.mp4")] and j.master_output is None
+    t = jobs.temp_master_path(j)
+    assert t == str(tmp_path / f".a.deint.nomaster.{os.getpid()}.tmp.mkv")
+    j2 = JobSpec(input=str(tmp_path / "a.avi"), output_dir=str(tmp_path), keep_master=False)
+    assert any("viewing copy" in p.message for p in jobs.job_problems(j2, []))
+
+
+def test_remove_stale_temp_masters(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    dead = subprocess.run([sys.executable, "-c", "import os; print(os.getpid())"], capture_output=True, text=True).stdout.strip()
+    stale = [tmp_path / f".x.deint.nomaster.{dead}.tmp.mkv", tmp_path / f"..x.deint.nomaster.{dead}.tmp.mkv.partial"]
+    live = [tmp_path / f".x.deint.nomaster.{os.getpid()}.tmp.mkv", tmp_path / f".y.nomaster.{os.getppid()}.tmp.mkv"]
+    other = [tmp_path / "x.deint.mkv", tmp_path / ".x.deint.mkv.partial"]
+    for f in stale + live + other:
+        f.write_bytes(b"x")
+    assert sorted(jobs.remove_stale_temp_masters(str(tmp_path))) == sorted(map(str, stale))
+    assert all(f.exists() for f in live + other)
+
+
+def test_estimate_and_disk_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import shutil
+
+    a = AnalysisResult()
+    a.probe.video.width, a.probe.video.height, a.probe.video.nb_frames, a.probe.video.pix_fmt = 720, 576, 274, "yuv420p"
+    est = jobs.estimate_master_bytes(a, MasterSettings())
+    assert est == int(548 * 720 * 576 * 1.5 * 0.5)  # reference master measures 121 MB
+    j = JobSpec(input=str(tmp_path / "a.avi"), output_dir=str(tmp_path / "new"), keep_master=False)
+    assert jobs.disk_space_warning(j, a) == ""
+    monkeypatch.setattr(shutil, "disk_usage", lambda p: shutil._ntuple_diskusage(1, 1, 1000))
+    w = jobs.disk_space_warning(j, a)
+    assert "temporary master" in w and "GB" in w

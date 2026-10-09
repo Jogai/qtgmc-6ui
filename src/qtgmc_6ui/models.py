@@ -371,6 +371,9 @@ class JobSpec(Serializable):
     overwrite: bool = False
     master_output: str | None = None  # explicit master path (-o)
     skip_master: bool = False  # views only, from an existing master given in master_output
+    # False: the master is still encoded (views are always made from it) but into a hidden
+    # temporary file in output_dir that is deleted afterwards; needs >= 1 view, no master_output
+    keep_master: bool = True
     analysis: AnalysisResult | None = None  # reuse a previous analysis instead of re-running
 
 

@@ -5,7 +5,7 @@ are dispatched lazily so importing this module never imports vapoursynth or Qt.
   qtgmc-6ui analyze INPUT [--json|--events] [--full] [--windows N] [--window-frames W] [--no-cache]
   qtgmc-6ui deint INPUT [-o OUT] [--out-dir DIR] [--name TEMPLATE] [--field-order auto|tff|bff]
             [--rate double|single] [--preset P] [--no-lossless] [--no-source-match]
-            [--denoise SIGMA] [--chroma keep|422] [--view PROFILE ...] [--force] [--overwrite]
+            [--denoise SIGMA] [--chroma keep|422] [--view PROFILE ...] [--no-master] [--force] [--overwrite]
             [--threads N] [--cache-mb N] [--json|--events] [--dry-run] [--save-job FILE]
   qtgmc-6ui run-job JOB.json|-  [--json|--events] [--dry-run]
   qtgmc-6ui view MASTER --profile P [-o OUT] [--overwrite] [--json|--events]
@@ -102,6 +102,13 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--name", default="{stem}.deint", help="name template, {stem} = input stem")
     _deint_options(d)
     d.add_argument("--view", action="append", default=[], metavar="PROFILE", help="viewing-copy profile id or .toml")
+    d.add_argument(
+        "--no-master",
+        action="store_true",
+        help="do not keep the archival master (needs --view; -o not allowed, use --out-dir/--name): "
+        "it is still encoded losslessly, into a hidden temporary file in the output folder, "
+        "because viewing copies are always made from it, and deleted afterwards",
+    )
     d.add_argument("--force", action="store_true", help="process despite telecine/mixed/progressive detection")
     d.add_argument("--overwrite", action="store_true")
     d.add_argument("--dry-run", action="store_true", help="analyze, print the plan and commands, do nothing")

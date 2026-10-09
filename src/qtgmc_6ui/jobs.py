@@ -66,11 +66,12 @@ def job_from_args(args: argparse.Namespace) -> JobSpec:
     else:
         out_dir = os.path.dirname(inp)
     settings = master_settings_from_args(args)
+    keep_master = not getattr(args, "no_master", False)
     if settings.denoise_sigma < 0:
         raise UsageError("--denoise must be >= 0", "0 disables denoising")
     if settings.threads < 0 or settings.cache_mb < 0:
         raise UsageError("--threads/--cache-mb must be >= 0")
-    return JobSpec(
+    job = JobSpec(
         schema=JOB_SCHEMA,
         input=inp,
         output_dir=out_dir,
@@ -80,7 +81,113 @@ def job_from_args(args: argparse.Namespace) -> JobSpec:
         force=bool(getattr(args, "force", False)),
         overwrite=bool(getattr(args, "overwrite", False)),
         master_output=master_output,
+        keep_master=keep_master,
     )
+    check_master_choice(job)
+    return job
+
+
+def check_master_choice(job: JobSpec) -> None:
+    """``keep_master=False`` (--no-master) rules; UsageError (exit 2) with an actionable hint."""
+    if job.keep_master:
+        return
+    if not job.views:
+        raise UsageError(
+            "--no-master needs at least one viewing copy",
+            "add --view PROFILE (list them with: qtgmc-6ui profiles list), or keep the master",
+            reason="no_master_without_view",
+        )
+    if job.skip_master:
+        raise UsageError("--no-master cannot be combined with an existing master (skip_master)", reason="no_master_skip_master")
+    if job.master_output:
+        raise UsageError(
+            "-o names the archival master, but --no-master keeps none",
+            "place the viewing copies with --out-dir and --name instead",
+            reason="no_master_with_output",
+        )
+
+
+TEMP_MASTER_TAG = ".nomaster."
+TEMP_MASTER_SUFFIX = ".tmp.mkv"
+
+
+def temp_master_path(job: JobSpec, pid: int | None = None) -> str:
+    """Hidden temporary master for --no-master: ``<output_dir>/.<name>.nomaster.<pid>.tmp.mkv``
+    (same filesystem as the views, never a RAM-backed /tmp)."""
+    name = format_name(job.name_template, job.input)
+    return os.path.join(job.output_dir, f".{name}{TEMP_MASTER_TAG}{pid or os.getpid()}{TEMP_MASTER_SUFFIX}")
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    st = Path(f"/proc/{pid}/stat")
+    try:
+        return st.read_text().split(") ")[-1].split()[0] != "Z"
+    except OSError:
+        return True
+
+
+def remove_stale_temp_masters(output_dir: str) -> list[str]:
+    """Delete temporary masters (and their .partial files) left by crashed --no-master runs in
+    ``output_dir``: those whose owning pid no longer runs.  Returns the removed paths."""
+    removed: list[str] = []
+    try:
+        names = os.listdir(output_dir)
+    except OSError:
+        return removed
+    for n in names:
+        if not n.startswith(".") or TEMP_MASTER_TAG not in n:
+            continue
+        base = n[:-len(".partial")] if n.endswith(".partial") else n
+        base = base.lstrip(".")
+        if not base.endswith(TEMP_MASTER_SUFFIX):
+            continue
+        pid_s = base[: -len(TEMP_MASTER_SUFFIX)].rsplit(".", 1)[-1]
+        if not pid_s.isdigit() or int(pid_s) == os.getpid() or _pid_alive(int(pid_s)):
+            continue
+        p = os.path.join(output_dir, n)
+        try:
+            os.unlink(p)
+            removed.append(p)
+        except OSError:
+            pass
+    return removed
+
+
+def estimate_master_bytes(analysis: AnalysisResult, settings: MasterSettings) -> int:
+    """Rough ffv1 master size: output frames x raw frame bytes x 0.5 (the reference DV clip
+    measures ~0.35); audio is negligible next to it."""
+    v = analysis.probe.video
+    frames = v.nb_frames or int(round(v.duration_s * float(v.fps))) or 0
+    if settings.rate == RateMode.DOUBLE:
+        frames *= 2
+    pf = v.pix_fmt or ""
+    chroma = 3.0 if "444" in pf else 2.0 if "422" in pf else 1.0 if pf.startswith("gray") else 1.5
+    bps = 2 if (v.bit_depth or 8) > 8 else 1
+    return int(frames * v.width * v.height * chroma * bps * 0.5)
+
+
+def disk_space_warning(job: JobSpec, analysis: AnalysisResult) -> str:
+    """Warning text when the output folder has less free space than the estimated master."""
+    import shutil
+
+    d = Path(job.output_dir or os.path.dirname(job.input))
+    while not d.exists() and d.parent != d:
+        d = d.parent
+    try:
+        free = shutil.disk_usage(d).free
+    except OSError:
+        return ""
+    need = estimate_master_bytes(analysis, job.master)
+    if need <= free:
+        return ""
+    what = "the archival master" if job.keep_master else "the temporary master"
+    return f"{what} needs about {need / 1e9:.1f} GB but only {free / 1e9:.1f} GB is free in {d}"
 
 
 def read_json_document(stream: IO[str]) -> Any:
@@ -190,14 +297,18 @@ def resolve_profiles(job: JobSpec) -> list[Any]:
 
 
 def plan_outputs(job: JobSpec, profs: list[Any] | None = None) -> list[str]:
-    """Fix every output path in the job (master_output, views[i].output) and return them in
-    stage order, so the ``start`` event, pipeline and cleanup agree."""
-    job.master_output = master_path(job)
+    """Fix every output path in the job (master_output, views[i].output) and return the KEPT
+    outputs in stage order, so the ``start`` event, pipeline and cleanup agree.  Without a
+    kept master (keep_master=False) master_output stays None and only views are listed."""
+    check_master_choice(job)
+    if job.keep_master:
+        job.master_output = master_path(job)
     if profs is None:
         profs = resolve_profiles(job) if job.views else []
     for v, prof in zip(job.views, profs, strict=True):
         v.output = view_path(job, v, prof)
-    return [job.master_output] + [v.output or "" for v in job.views]
+    head = [job.master_output] if job.keep_master and job.master_output else []
+    return head + [v.output or "" for v in job.views]
 
 
 def same_file(a: str, b: str) -> bool:
@@ -221,6 +332,10 @@ def _writable_dir(d: str) -> bool:
 def job_problems(job: JobSpec, outputs: list[str] | None = None) -> list[QtgmcError]:
     """Structured version of validate_job (first one is raised by check_job)."""
     probs: list[QtgmcError] = []
+    try:
+        check_master_choice(job)
+    except UsageError as e:
+        probs.append(e)
     if not os.path.exists(job.input):
         probs.append(InputError(ErrorCode.INPUT_NOT_FOUND, f"input not found: {job.input}", "check the path"))
     elif not os.path.isfile(job.input):
@@ -230,10 +345,10 @@ def job_problems(job: JobSpec, outputs: list[str] | None = None) -> list[QtgmcEr
     if outputs is None:
         outputs = [master_path(job)] + [v.output for v in job.views if v.output]
     seen: dict[str, str] = {}
-    for i, out in enumerate(outputs):
+    for out in outputs:
         if not out:
             continue
-        is_master = i == 0
+        is_master = out == job.master_output
         if same_file(out, job.input):
             probs.append(
                 UsageError(
@@ -270,7 +385,7 @@ def validate_job(job: JobSpec) -> list[str]:
             profs = resolve_profiles(job)
         except QtgmcError as e:
             lines.append(e.message)
-    outputs = [master_path(job)]
+    outputs = [master_path(job)] if job.keep_master else []
     if profs is not None:
         outputs += [view_path(job, v, p) for v, p in zip(job.views, profs, strict=True)]
     lines += [e.message for e in job_problems(job, outputs)]
