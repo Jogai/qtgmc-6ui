@@ -73,18 +73,29 @@ def test_window_field_order_share() -> None:
     assert classify.classify_window(win(IdetCounts(tff=150, bff=150))) is ContentClass.UNDETERMINED
 
 
-def test_window_suspect_but_fieldmatch_says_interlaced() -> None:
-    w = win(IdetCounts(bff=60), RepeatCounts(neither=36, top=12, bottom=12))
+def test_window_suspect_is_never_interlaced() -> None:
+    # weak signature (0.20) that fieldmatch cannot clean: undetermined, whatever idet says afterwards
+    w = win(IdetCounts(bff=60), RepeatCounts(neither=48, top=6, bottom=6))
     w.after_fieldmatch = IdetCounts(bff=60)
     w.repeated_after_fieldmatch = RepeatCounts(neither=60)
-    assert classify.classify_window(w) is ContentClass.INTERLACED_BFF
-    w.after_fieldmatch = IdetCounts(bff=30, undetermined=30, progressive=30)  # 33 % interlaced: neither
-    assert classify.classify_window(w) is ContentClass.UNDETERMINED
-    # mixed: the telecined half became undetermined after fieldmatch -> not interlaced (sections decide)
-    w.after_fieldmatch = IdetCounts(tff=120, undetermined=120)
+    w.combed_after_fieldmatch = 60
     assert classify.classify_window(w) is ContentClass.UNDETERMINED
     w.after_fieldmatch = IdetCounts(tff=48, undetermined=12)
-    assert classify.classify_window(w) is ContentClass.INTERLACED_TFF
+    assert classify.classify_window(w) is ContentClass.UNDETERMINED
+    # clean confirmation -> telecined
+    w.combed_after_fieldmatch = 0
+    assert classify.classify_window(w) is ContentClass.TELECINED
+    # chroma-smeared telecine (review F3): idet after fieldmatch says BFF 71 / prog 49, fieldmatch clean,
+    # strong signature -> telecined, not interlaced_bff
+    w = win(IdetCounts(tff=116, progressive=4), RepeatCounts(neither=72, top=24, bottom=24))
+    w.after_fieldmatch = IdetCounts(bff=71, progressive=49)
+    w.repeated_after_fieldmatch = RepeatCounts(neither=120)
+    w.combed_after_fieldmatch = 0
+    assert classify.classify_window(w) is ContentClass.TELECINED
+    w.combed_after_fieldmatch = 120  # even when fieldmatch cannot clean it: strong signature wins
+    assert classify.classify_window(w) is ContentClass.TELECINED
+    c, r = classify.classify_file([w], PROBE)
+    assert c.content is ContentClass.TELECINED and c.confidence == 1.0 and r.action is RecommendedAction.BLOCK_TELECINED
 
 
 # --------------------------------------------------------------------------- files
@@ -141,9 +152,36 @@ def test_file_progressive() -> None:
     c, r = classify.classify_file([PROG], PROBE)
     assert c.content is ContentClass.PROGRESSIVE and c.confidence == 1.0
     assert r.action is RecommendedAction.SKIP_PROGRESSIVE and r.force_allowed
-    c, r = classify.classify_file([PROG, UND], PROBE)
-    assert c.content is ContentClass.PROGRESSIVE and c.confidence == pytest.approx(75 / 171, abs=1e-4)
+    c, r = classify.classify_file([PROG, win(IdetCounts(undetermined=50))], PROBE)
+    assert c.content is ContentClass.PROGRESSIVE and c.confidence == pytest.approx(75 / 125, abs=1e-4)
     assert classify.UNDETERMINED_SECTIONS_REASON in c.reasons
+    # below MIN_CONFIDENCE: no verdict
+    c, r = classify.classify_file([PROG, UND], PROBE)
+    assert c.content is ContentClass.UNDETERMINED and c.confidence == pytest.approx(75 / 171, abs=1e-4)
+    assert classify.LOW_CONFIDENCE_WARNING in c.warnings and r.action is RecommendedAction.CONFIRM_FIELD_ORDER
+
+
+def test_file_low_confidence_interlaced_is_undetermined() -> None:
+    # motion only in 1 of 5 windows (mostly static tape): verdict withheld, lean given
+    ws = [TFF] + [win(IdetCounts(undetermined=300), start_frame=i * 1000, start_s=i * 40.0) for i in range(1, 5)]
+    c, r = classify.classify_file(ws, PROBE)
+    assert c.content is ContentClass.UNDETERMINED and c.field_order is None and c.confidence == pytest.approx(0.2)
+    assert classify.LOW_CONFIDENCE_WARNING in c.warnings
+    assert r.action is RecommendedAction.CONFIRM_FIELD_ORDER and "lean towards TFF" in r.message
+    assert "IVTC" not in r.message
+    # 3 of 5 windows moving: fine
+    ws = [TFF, TFF, TFF] + ws[1:3]
+    c, r = classify.classify_file(ws, PROBE)
+    assert c.content is ContentClass.INTERLACED_TFF and c.confidence == pytest.approx(0.6) and r.action is RecommendedAction.DEINTERLACE
+
+
+def test_file_undetermined_with_repeat_signature_explains_ivtc() -> None:
+    w = win(IdetCounts(tff=120), RepeatCounts(neither=96, top=12, bottom=12))  # 0.20, unconfirmed
+    w.after_fieldmatch = IdetCounts(tff=120)
+    w.combed_after_fieldmatch = 120
+    c, r = classify.classify_file([w], PROBE)
+    assert c.content is ContentClass.UNDETERMINED and r.action is RecommendedAction.CONFIRM_FIELD_ORDER
+    assert "IVTC" in r.message and "20%" in r.message and "--field-order" in r.message
 
 
 def test_file_interlaced_plus_progressive_sections_warns() -> None:

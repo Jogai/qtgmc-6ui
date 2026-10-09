@@ -4,10 +4,11 @@ Per window (n = frames, det = tff+bff+prog of the MULTI counts, rep = repeat rat
   telecined     rep >= REPEAT_RATIO_SUSPECT and telecine.window_is_telecined()
   interlaced    rep < 0.15, det/n >= MIN_DETERMINED_SHARE, (tff+bff)/det >= INTERLACED_SHARE
                 field order: tff if tff >= FIELD_ORDER_SHARE*(tff+bff), bff likewise, else None
-                (a suspect window whose confirmation pass says "still interlaced" counts
-                here too when >= 80 % of ALL its after-fieldmatch frames are interlaced)
   progressive   rep < 0.15, det/n >= MIN_DETERMINED_SHARE, prog/det >= PROGRESSIVE_SHARE
-  undetermined  otherwise (mostly static/undetermined frames, or no clear majority)
+  undetermined  otherwise (mostly static/undetermined frames, no clear majority, or a
+                repeated-field signature the confirmation pass could not confirm: a suspect
+                window is never "interlaced", the field order of the plain idet pass is
+                meaningless on pulldown material)
 
 Whole file:
   all windows interlaced, same order          -> INTERLACED_TFF/BFF, action DEINTERLACE
@@ -20,7 +21,9 @@ Whole file:
                                                  (warning "no interlacing detected; may be progressive")
   fewer than MIN_DETERMINED_FRAMES determined -> UNDETERMINED, CONFIRM_FIELD_ORDER with the lean as a
   frames in the whole file (tiny clips)          hint; confidence scaled down by the sample size
-Confidence = share of frames supporting the verdict, in [0, 1].
+  interlaced/progressive with confidence < MIN_CONFIDENCE -> UNDETERMINED, CONFIRM_FIELD_ORDER
+Confidence = share of frames supporting the verdict, in [0, 1].  An undetermined verdict
+whose evidence includes a repeated-field signature carries the IVTC explanation.
 """
 
 from __future__ import annotations
@@ -41,6 +44,7 @@ from .models import (
 
 MIN_DETERMINED_SHARE = 0.20
 MIN_DETERMINED_FRAMES = 10  # fewer determined frames in the whole file -> no verdict, only a lean
+MIN_CONFIDENCE = 0.5  # interlaced/progressive verdicts below this are reported as undetermined
 INTERLACED_SHARE = 0.80
 PROGRESSIVE_SHARE = 0.80
 FIELD_ORDER_SHARE = 0.80
@@ -71,6 +75,13 @@ CONFLICT_WARNING = "field order conflicts between sampled sections; confirm tff 
 PROGRESSIVE_SECTIONS_WARNING = "some sampled sections look progressive; deinterlacing applies to all frames"
 UNDETERMINED_SECTIONS_REASON = "some sampled sections are undetermined (static or very smooth content)"
 TOO_FEW_FRAMES_WARNING = "too few frames to judge the content; confirm the field order manually"
+LOW_CONFIDENCE_WARNING = "less than half of the sampled frames support the verdict; confirm the field order manually"
+TELECINE_SUSPECT_HINT = (
+    " Repeated fields were found in the sampled frames ({pct:.0%} of the frames with motion), which "
+    "usually means 3:2 pulldown (telecine) that the confirmation pass could not verify. Telecined "
+    "material needs inverse telecine (IVTC) with another tool (for example FFmpeg: -vf "
+    "fieldmatch,decimate) instead of deinterlacing; check the fields in the preview before deciding."
+)
 
 _ORDER_CLASS = {FieldOrder.TFF: ContentClass.INTERLACED_TFF, FieldOrder.BFF: ContentClass.INTERLACED_BFF}
 
@@ -108,12 +119,8 @@ def window_verdict(w: IdetWindow) -> WindowVerdict:
     if telecine.is_suspect(w):
         if telecine.window_is_telecined(w):
             return WindowVerdict("telecined", None, w.multi)
-        # Signature present but fieldmatch says it stays interlaced.  Judge that pass over
-        # ALL its frames: fieldmatch turns a telecined part into undetermined frames, so a
-        # mixed window must not pass as interlaced just because its determined frames are.
-        a = w.after_fieldmatch
-        if a is not None and a.total > 0 and (a.tff + a.bff) / a.total >= INTERLACED_SHARE:
-            return WindowVerdict("interlaced", field_order_of(a), a)
+        # Signature present but fieldmatch could not clean it and it is not strong: the plain
+        # idet field order is meaningless on pulldown material, so no interlaced verdict.
         return WindowVerdict("undetermined", None, w.multi)
     return _counts_verdict(w.multi)
 
@@ -159,10 +166,15 @@ def classify_file(windows: list[IdetWindow], probe: ProbeInfo) -> tuple[Classifi
     def share(x: int) -> float:
         return round(min(1.0, max(0.0, x / total)), 4) if total > 0 else 0.0
 
+    suspect_ratio = max((telecine.repeat_ratio(w) for w in windows if telecine.is_suspect(w)), default=0.0)
+
+    def confirm(lean: FieldOrder | None) -> Recommendation:
+        return Recommendation(RecommendedAction.CONFIRM_FIELD_ORDER, _confirm_message(lean, suspect_ratio), True)
+
     if not windows or total == 0:
         return (
             Classification(ContentClass.UNDETERMINED, None, 0.0, reasons + ["no frames were analysed"], [NO_INTERLACING_WARNING]),
-            Recommendation(RecommendedAction.CONFIRM_FIELD_ORDER, _confirm_message(None), True),
+            confirm(None),
         )
 
     det_total = tff + bff + prog
@@ -178,7 +190,7 @@ def classify_file(windows: list[IdetWindow], probe: ProbeInfo) -> tuple[Classifi
         conf = round(share(best_n) * det_total / MIN_DETERMINED_FRAMES, 4)
         return (
             Classification(ContentClass.UNDETERMINED, None, conf, reasons, warnings),
-            Recommendation(RecommendedAction.CONFIRM_FIELD_ORDER, _confirm_message(lean), True),
+            confirm(lean),
         )
 
     if "telecined" in kinds and "interlaced" in kinds:
@@ -204,7 +216,7 @@ def classify_file(windows: list[IdetWindow], probe: ProbeInfo) -> tuple[Classifi
             best = FieldOrder.TFF if tff >= bff else FieldOrder.BFF
             return (
                 Classification(ContentClass.UNDETERMINED, None, share(max(tff, bff)), reasons, warnings),
-                Recommendation(RecommendedAction.CONFIRM_FIELD_ORDER, _confirm_message(best), True),
+                confirm(best),
             )
         (order,) = orders
         assert order is not None
@@ -213,6 +225,13 @@ def classify_file(windows: list[IdetWindow], probe: ProbeInfo) -> tuple[Classifi
         if "undetermined" in kinds:
             reasons.append(UNDETERMINED_SECTIONS_REASON)
         supporting = tff if order is FieldOrder.TFF else bff
+        if share(supporting) < MIN_CONFIDENCE:
+            reasons.append(f"only {supporting} of {total} sampled frames support {order.value.upper()}")
+            warnings.append(LOW_CONFIDENCE_WARNING)
+            return (
+                Classification(ContentClass.UNDETERMINED, None, share(supporting), reasons, warnings),
+                confirm(order),
+            )
         name = "top field first" if order is FieldOrder.TFF else "bottom field first"
         msg = (
             f"Interlaced, {name} ({supporting} of {total} sampled frames). "
@@ -226,6 +245,13 @@ def classify_file(windows: list[IdetWindow], probe: ProbeInfo) -> tuple[Classifi
     if "progressive" in kinds:
         if "undetermined" in kinds:
             reasons.append(UNDETERMINED_SECTIONS_REASON)
+        if share(prog) < MIN_CONFIDENCE:
+            reasons.append(f"only {prog} of {total} sampled frames look progressive")
+            warnings.append(LOW_CONFIDENCE_WARNING)
+            return (
+                Classification(ContentClass.UNDETERMINED, None, share(prog), reasons, warnings),
+                confirm(None),
+            )
         return (
             Classification(ContentClass.PROGRESSIVE, None, share(prog), reasons, warnings),
             Recommendation(RecommendedAction.SKIP_PROGRESSIVE, PROGRESSIVE_MESSAGE, True),
@@ -235,15 +261,17 @@ def classify_file(windows: list[IdetWindow], probe: ProbeInfo) -> tuple[Classifi
     best = max(tff, bff, prog)
     return (
         Classification(ContentClass.UNDETERMINED, None, share(best), reasons, warnings),
-        Recommendation(RecommendedAction.CONFIRM_FIELD_ORDER, _confirm_message(None), True),
+        confirm(None),
     )
 
 
-def _confirm_message(best: FieldOrder | None) -> str:
+def _confirm_message(best: FieldOrder | None, suspect_ratio: float = 0.0) -> str:
     hint = f" The sampled frames lean towards {best.value.upper()}." if best else ""
+    tele = TELECINE_SUSPECT_HINT.format(pct=suspect_ratio) if suspect_ratio > 0 else ""
     return (
         "The field order could not be determined from the content."
         + hint
         + " Check the fields in the preview (show fields mode) and set the field order "
         "explicitly (--field-order tff|bff / the override) before deinterlacing."
+        + tele
     )
