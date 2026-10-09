@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+packaging/aur/src/
+packaging/aur/pkg/
+packaging/aur/*.pkg.tar.*
+packaging/aur/*.tar.gz
+packaging/aur/*.whl
+packaging/aur/*.log
+packaging/local/

@@ -1,0 +1,54 @@
+version = 1
+revision = 5
+requires-python = ">=3.12"
+
+[manifest]
+excludes = [
+    "numpy",
+    "psutil",
+    "pyside6",
+    "rich",
+    "shiboken6",
+    "typing-extensions",
+    "vapoursynth",
+    "vapoursynth-akarin",
+    "vapoursynth-vszip",
+]
+
+[[package]]
+name = "jetpytools"
+version = "3.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/65/ad/480d76a74467ddf67c6f5b35cacc84f940ca08c520eba9c94d10c7372cb6/jetpytools-3.1.2.tar.gz", hash = "sha256:f645e6ed57d3968005b562b0b04e540d71a86887b41b45496b9fb0ef34321ff0", size = 28381, upload-time = "2026-10-04T15:19:53.391Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/f5/501254ac5e0c01e3755b480e9d0c96bd654c6fc408ec8adcd950da4b728d/jetpytools-3.1.2-py3-none-any.whl", hash = "sha256:7a7f2cfb89615269e28451b17effd9ae81c01135de70ef463093b9916a368008", size = 32818, upload-time = "2026-10-04T15:19:52.078Z" },
+]
+
+[[package]]
+name = "qtgmc-6ui"
+source = { editable = "." }
+dependencies = [
+    { name = "jetpytools" },
+    { name = "vsjetpack" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "jetpytools", specifier = "==3.1.2" },
+    { name = "vsjetpack", specifier = "==2.2.6" },
+]
+
+[package.metadata.requires-dev]
+dev = []
+
+[[package]]
+name = "vsjetpack"
+version = "2.2.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jetpytools" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a7/9c/7c44757910e8aa05b2f466b86e3d3b15bbf056a34741c094d4efeb44e0b8/vsjetpack-2.2.6.tar.gz", hash = "sha256:54b90e82e6c9864d7becbbd4fffc29fc2f6e1e0216b475734026521c88f732c3", size = 609076, upload-time = "2026-10-04T19:48:59.922Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/50/32/9359de2b97f25528a62c666f21eaf80893787db468658f3c4bcb52b5aa4f/vsjetpack-2.2.6-py3-none-any.whl", hash = "sha256:5835d0a4011555ea29bbba15055fbf605d5668b8bd6832f36866ef0c56e0e335", size = 440600, upload-time = "2026-10-04T19:48:57.273Z" },
+]
