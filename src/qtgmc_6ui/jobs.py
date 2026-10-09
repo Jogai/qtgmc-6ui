@@ -178,8 +178,9 @@ def view_path(job: JobSpec, view: ViewCopySpec, profile: Any) -> str:
     """``<output_dir>/<template>.<profile.id>.<profile.extension>`` unless view.output."""
     if view.output:
         return view.output
-    base = format_name(job.name_template, job.input)
-    return os.path.join(job.output_dir, f"{base}.{profile.id}.{profile.extension}")
+    from . import viewcopy  # single source of truth for viewing-copy names (WP-C)
+
+    return viewcopy.view_output_path(job.input, profile, job.name_template, job.output_dir)
 
 
 def resolve_profiles(job: JobSpec) -> list[Any]:
