@@ -442,9 +442,104 @@ def test_long_mostly_static_clip_low_confidence(clips, isolated_dirs) -> None:
     # interlaced motion only in the first window, the rest is static -> verdict stands, low confidence
     r = analysis.analyze(str(clips["long_static_tff"]), use_cache=False)
     assert len(r.windows) == idet.IDET_WINDOWS
-    assert r.classification.content is ContentClass.INTERLACED_TFF, r.classification.reasons
-    assert r.classification.confidence < 0.5
+    assert r.classification.content is ContentClass.UNDETERMINED, r.classification.reasons
+    assert r.classification.confidence < 0.5 and r.classification.field_order is None
+    assert r.recommendation.action is RecommendedAction.CONFIRM_FIELD_ORDER and "lean towards TFF" in r.recommendation.message
     assert any("undetermined" in s for s in r.classification.reasons)
+
+
+# --------------------------------------------------------------------------- content x variant matrix
+MATRIX_CONTENT = {
+    # name: (lavfi source, filters before format/telecine)
+    "mandel": ("mandelbrot=size={size}:rate={rate}", "rotate=t*0.5:fillcolor=black"),
+    "testsrc2": ("testsrc2=size={size}:rate={rate}", "null"),
+    "bars": ("smptehdbars=size={size}:rate={rate}",
+             "rotate=t*0.4:fillcolor=black,drawbox=x='mod(t*120\\,400)':y='mod(t*70\\,300)':w=80:h=60:color=white:t=fill"),
+    "noise": ("mandelbrot=size={size}:rate={rate}", "rotate=t*0.5:fillcolor=black,noise=alls=25:allf=t+u"),
+}
+
+
+def _gen_matrix_clip(out: Path, content: str, variant: str, size: str, secs: float) -> Path:
+    src, base = MATRIX_CONTENT[content]
+    if variant == "tele_pre":  # proper: 4:2:0 fields, chroma per film frame (DVD-like)
+        rate, vf = "24000/1001", f"{base},format=yuv420p,telecine=pattern=23"
+    elif variant == "tele_post":  # naive: chroma subsampled after telecine (smeared across fields)
+        rate, vf = "24000/1001", f"{base},telecine=pattern=23,format=yuv420p"
+    elif variant in ("int_tff", "int_bff"):
+        rate, vf = "60000/1001", f"{base},format=yuv420p,tinterlace=interleave_{'top' if variant == 'int_tff' else 'bottom'}"
+    elif variant == "prog":
+        rate, vf = "30000/1001", f"{base},format=yuv420p"
+    else:
+        raise ValueError(variant)
+    _ffmpeg("-f", "lavfi", "-i", src.format(size=size, rate=rate), "-t", str(secs), "-vf", vf, "-c:v", "ffv1", "-an", str(out))
+    return out
+
+
+def _matrix_clip(d: Path, content: str, variant: str, size: str, secs: float) -> Path:
+    if variant.startswith("mixed"):
+        a = _matrix_clip(d, content, "tele_pre", size, secs)
+        b = _matrix_clip(d, content, "int_bff" if variant == "mixed_bff" else "int_tff", size, 4)
+        out = d / f"{content}_{size}_{variant}_{secs}.mkv"
+        if not out.exists():
+            lst = d / f"{out.stem}.txt"
+            lst.write_text(f"file '{a}'\nfile '{b}'\n", encoding="utf-8")
+            _ffmpeg("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(out))
+        return out
+    out = d / f"{content}_{size}_{variant}_{secs}.mkv"
+    if not out.exists():
+        _gen_matrix_clip(out, content, variant, size, secs)
+    return out
+
+
+@pytest.fixture(scope="session")
+def matrix_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg missing")
+    return tmp_path_factory.mktemp("wpa_matrix")
+
+
+TELE, MIXED, TFF_, BFF_, PROG_ = "telecined", "mixed", "interlaced_tff", "interlaced_bff", "prog"
+MATRIX_CASES = [
+    # content, variant, size, seconds, expected
+    ("mandel", "tele_pre", "720x480", 4, TELE), ("mandel", "tele_post", "720x480", 4, TELE),
+    ("mandel", "tele_post", "352x240", 4, TELE), ("mandel", "int_tff", "720x480", 4, TFF_),
+    ("mandel", "int_bff", "640x480", 4, BFF_), ("mandel", "mixed", "720x480", 4, MIXED),
+    ("mandel", "prog", "720x480", 4, PROG_), ("mandel", "tele_pre", "720x480", 8, TELE),
+    ("mandel", "tele_post", "720x480", 8, TELE), ("mandel", "mixed_bff", "720x480", 8, MIXED),
+    ("testsrc2", "tele_pre", "640x480", 4, TELE), ("testsrc2", "tele_post", "640x480", 4, TELE),
+    ("testsrc2", "int_tff", "640x480", 4, TFF_), ("testsrc2", "mixed", "640x480", 4, MIXED),
+    ("testsrc2", "tele_pre", "720x480", 20, TELE), ("testsrc2", "int_tff", "720x480", 20, TFF_),
+    ("bars", "tele_pre", "640x480", 4, TELE), ("bars", "tele_post", "640x480", 4, TELE),
+    ("bars", "int_tff", "640x480", 4, TFF_), ("bars", "mixed", "640x480", 4, MIXED),
+    ("bars", "prog", "640x480", 4, PROG_), ("bars", "tele_pre", "640x480", 20, TELE),
+    ("noise", "tele_pre", "720x480", 4, TELE), ("noise", "tele_post", "720x480", 4, TELE),
+    ("noise", "int_bff", "720x480", 4, BFF_), ("noise", "mixed", "720x480", 4, MIXED),
+    ("noise", "prog", "720x480", 4, PROG_),
+]
+
+
+@pytest.mark.needs_sandbox
+@pytest.mark.slow
+@pytest.mark.parametrize("content,variant,size,secs,expected", MATRIX_CASES,
+                         ids=[f"{c}-{v}-{s}-{t}s" for c, v, s, t, _ in MATRIX_CASES])
+def test_detection_matrix_varied_content(matrix_dir, isolated_dirs, content, variant, size, secs, expected) -> None:
+    clip = _matrix_clip(matrix_dir, content, variant, size, secs)
+    r = analysis.analyze(str(clip), use_cache=False)
+    c, rec = r.classification, r.recommendation
+    detail = (c.content, c.confidence, c.reasons, [(w.window_class.value, w.repeated, w.combed_after_fieldmatch) for w in r.windows])
+    if expected == TELE:
+        assert c.content is ContentClass.TELECINED, detail
+        assert rec.action is RecommendedAction.BLOCK_TELECINED and "IVTC" in rec.message
+    elif expected == MIXED:
+        assert c.content is ContentClass.MIXED, detail
+        assert rec.action is RecommendedAction.BLOCK_MIXED and "IVTC" in rec.message
+    elif expected in (TFF_, BFF_):
+        assert c.content is ContentClass(expected) and c.confidence >= 0.9, detail
+        assert rec.action is RecommendedAction.DEINTERLACE and not r.fieldmatch_run
+    else:  # progressive: never interlaced
+        assert c.content in (ContentClass.PROGRESSIVE, ContentClass.UNDETERMINED), detail
+        assert rec.action in (RecommendedAction.SKIP_PROGRESSIVE, RecommendedAction.CONFIRM_FIELD_ORDER)
+        assert c.field_order is None
 
 
 @pytest.mark.needs_sandbox

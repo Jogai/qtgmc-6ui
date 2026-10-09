@@ -21,7 +21,7 @@ from .events import Emitter
 from .models import ANALYSIS_SCHEMA, AnalysisResult, AnalysisWarning, IdetWindow, Preset, ProbeInfo
 
 STAGES = ("probe", "idet", "fieldmatch", "classify")
-CACHE_VERSION = 2  # bump when the scan/classification logic changes in a way that invalidates caches
+CACHE_VERSION = 3  # bump when the scan/classification logic changes in a way that invalidates caches
 
 VFR_CODE = "variable_frame_rate"
 VFR_RATE_TOLERANCE = 0.01  # r_frame_rate vs avg_frame_rate
@@ -201,6 +201,10 @@ def vfr_warning(info: ProbeInfo, wins: list[IdetWindow]) -> AnalysisWarning | No
 
 def _needs_sections(w) -> bool:
     c = w.multi
+    if telecine.is_suspect(w):
+        # A weaker-than-3:2 signature, or one fieldmatch could not clean, may be a telecined
+        # part next to an interlaced part: sections separate them (mixed vs telecined).
+        return not (telecine.is_strong(w) and telecine.confirmation_clean(w) is not False)
     if c.total <= 0 or c.determined / c.total < classify.MIN_DETERMINED_SHARE:
         return False  # static / smooth content: sections would not help
     return classify.window_verdict(w).kind == "undetermined"
