@@ -21,14 +21,14 @@ from .models import BuildInfo, PluginInfo, from_dict
 # Component name -> (namespace, identifier, required).  Used to label plugin files found in
 # a development plugin dir; the packaged build-info.json carries the real table.
 KNOWN_COMPONENTS: dict[str, tuple[str, str, bool]] = {
-    "akarin": ("akarin", "", True),
-    "resize2": ("resize2", "", True),
-    "mvutensils": ("mvu", "", True),
-    "znedi3": ("znedi3", "", True),
-    "zsmooth": ("zsmooth", "", True),
-    "vivtc": ("vivtc", "", False),
-    "dfttest2": ("dfttest2_cpu", "", False),
-    "vszip": ("vszip", "", False),
+    "akarin": ("akarin", "info.akarin.vsplugin", True),
+    "resize2": ("resize2", "dev.setsugen.resize2", True),
+    "mvutensils": ("mvu", "com.vapoursynth.mvutensils", True),
+    "znedi3": ("znedi3", "xxx.abc.znedi3", True),
+    "zsmooth": ("zsmooth", "com.adub.zsmooth", True),
+    "vivtc": ("vivtc", "org.ivtc.v", False),
+    "dfttest2": ("dfttest2_cpu", "io.github.amusementclub.dfttest2_cpu", False),
+    "vszip": ("vszip", "com.julek.vszip", False),
 }
 
 # mvutensils builds three variants with one plugin id; only the baseline is loaded.
