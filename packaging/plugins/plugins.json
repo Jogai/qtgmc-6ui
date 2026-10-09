@@ -160,7 +160,7 @@
           "sha256": "385dd211a8e98d0cfd78199d5e1cb93ff442558d4fec789aef247310ca974689",
           "role": "zig dependency 'vapoursynth'",
           "zig_hash": "vapoursynth-4.0.0-jLYMQ2SPAgCbH6_Kr5k8EUde77slXphbfx6P31vl3abc",
-          "license": "MIT"
+          "license": "LGPL-2.1-only"
         },
         {
           "filename": "adworacz-fftw-579b516e6b39a2a96200d248fc3c96d1ad7d9841.tar.gz",
