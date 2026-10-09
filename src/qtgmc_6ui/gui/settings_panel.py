@@ -78,6 +78,7 @@ class SettingsPanel(QScrollArea):
         self.setWidgetResizable(True)
         self.setFrameShape(QFrame.Shape.NoFrame)
         self._analysis: AnalysisResult | None = None
+        self._views_selected = 0
         root = QWidget()
         lay = QVBoxLayout(root)
         lay.setSpacing(10)
@@ -172,6 +173,15 @@ class SettingsPanel(QScrollArea):
         nv.addWidget(self.name_template)
         nv.addWidget(self.name_preview)
         oform.addRow("Name:", nv)
+        self.keep_master = QCheckBox("Keep the archival master (FFV1 + FLAC)")
+        self.keep_master.setObjectName("keepMasterCheck")
+        self.keep_master.setChecked(True)  # on at every start: the master is the archival result
+        self.keep_master_hint = WrapLabel()
+        self.keep_master_hint.setTextFormat(Qt.TextFormat.RichText)
+        km = QVBoxLayout()
+        km.addWidget(self.keep_master)
+        km.addWidget(self.keep_master_hint)
+        oform.addRow("Master:", km)
         self.overwrite = QCheckBox("Overwrite existing output files")
         oform.addRow("", self.overwrite)
         note = WrapLabel("The input file is never modified. Viewing copies are encoded from the master.")
@@ -185,7 +195,7 @@ class SettingsPanel(QScrollArea):
             self.rate_group.buttonToggled, self.preset_combo.currentIndexChanged, self.source_match.toggled,
             self.lossless.toggled, self.denoise.toggled, self.denoise_sigma.valueChanged, self.chroma.currentIndexChanged,
             self.threads.valueChanged, self.cache_mb.valueChanged, self.out_dir.textChanged,
-            self.name_template.textChanged, self.overwrite.toggled,
+            self.name_template.textChanged, self.overwrite.toggled, self.keep_master.toggled,
         ):
             sig.connect(self._on_change)
         self._update_notes()
@@ -203,6 +213,13 @@ class SettingsPanel(QScrollArea):
             threads=self.threads.value(),
             cache_mb=self.cache_mb.value(),
         )
+
+    def keeps_master(self) -> bool:
+        return self.keep_master.isChecked()
+
+    def set_views_selected(self, n: int) -> None:
+        self._views_selected = n
+        self._update_notes()
 
     def output_dir(self) -> str:
         return self.out_dir.text().strip()
@@ -241,6 +258,26 @@ class SettingsPanel(QScrollArea):
         self.changed.emit()
 
     def _update_notes(self) -> None:
+        if self.keep_master.isChecked():
+            self.keep_master_hint.setStyleSheet("color: palette(placeholder-text);")
+            self.keep_master_hint.setText(
+                "The master is lossless and typically about 4× larger than the viewing copies. "
+                "Without it, only the viewing copies are kept (the master is built temporarily and deleted)."
+            )
+        elif self._views_selected:
+            self.keep_master_hint.setStyleSheet("color: #b26a00;")
+            self.keep_master_hint.setText(
+                f"<b>No archival master:</b> only the {self._views_selected} selected viewing "
+                "cop" + ("y is" if self._views_selected == 1 else "ies are") + " kept. The deinterlaced "
+                "lossless master is built temporarily and deleted afterwards."
+            )
+        else:
+            self.keep_master_hint.setStyleSheet("color: #c62828;")
+            self.keep_master_hint.setText(
+                "<b>Select at least one viewing copy</b> (Viewing copies tab): without the master there "
+                "would be nothing to keep. Start is disabled until then."
+            )
+        self.keep_master_hint.setVisible(True)
         self.denoise_sigma.setEnabled(self.denoise.isChecked())
         self.denoise_warning.setVisible(self.denoise.isChecked())
         notes = []
@@ -261,7 +298,8 @@ class SettingsPanel(QScrollArea):
         stem = Path(a.input).stem if a else "clip"
         try:
             name = self.name_template_text().format(stem=stem)
-            self.name_preview.setText(f"Master → {name}.mkv; viewing copies → {name}.<profile>.<ext>")
+            master = f"Master → {name}.mkv; v" if self.keep_master.isChecked() else "No master; v"
+            self.name_preview.setText(f"{master}iewing copies → {name}.<profile>.<ext>")
         except (KeyError, IndexError, ValueError):
             self.name_preview.setText("Invalid template: only {stem} is allowed.")
 

@@ -135,7 +135,7 @@ class RunPanel(QWidget):
         elif state.exit_code == 0:
             self.progress.setValue(1000)
             self.progress.setFormat("Done")
-            self.stage_label.setText(f"Finished {item.name}")
+            self.stage_label.setText(f"Finished {item.name}" + ("" if state.keep_master else " — viewing copies only, no archival master kept"))
         else:
             self.progress.setFormat("Failed")
             self.show_error(state.error or {}, item.name)

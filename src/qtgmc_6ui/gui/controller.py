@@ -194,7 +194,8 @@ class QueueController(QObject):
         job_file.write_text(json.dumps(spec.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
         item.status, item.progress, item.outputs, item.error = JobStatus.RUNNING, 0.0, [], None
         self.model.notify(item)
-        state = RunState()
+        state = RunState(keep_master=spec.keep_master)
+        item.keep_master = spec.keep_master
         proc = EventProcess(["run-job", str(job_file), "--events"], self)
         self._run = (item, proc, state)
         proc.event.connect(lambda ev: self._on_run_event(item, state, ev))

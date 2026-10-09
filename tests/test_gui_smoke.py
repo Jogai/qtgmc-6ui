@@ -204,7 +204,7 @@ def test_duplicate_master_names_refused(qtbot, window, env: Path, monkeypatch: p
     monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: shown.append(a[2]))
     window.start_queue()
     assert not window.controller.running
-    assert shown and "pal_tff.deint.mkv" in shown[0]
+    assert shown and "pal_tff.deint.*" in shown[0]
 
 
 def test_run_job_success_writes_jobspec(qtbot, window, env: Path) -> None:
@@ -332,3 +332,51 @@ def test_preview_falls_back_without_serve(qtbot, window, env: Path, monkeypatch:
     pv = window.preview
     qtbot.waitUntil(lambda: pv.pane_a.pixmap is not None, timeout=TIMEOUT)
     assert '"preview-frame"' in (env.parent / "argv.log").read_text(encoding="utf-8")
+
+
+def _tick_profile(window, pid: str) -> None:
+    from PySide6.QtCore import Qt
+
+    lst = window.view_section.list
+    for r in range(lst.count()):
+        if lst.item(r).data(Qt.ItemDataRole.UserRole) == pid:
+            lst.item(r).setCheckState(Qt.CheckState.Checked)
+
+
+def test_no_master_requires_a_viewing_copy(qtbot, window, env: Path) -> None:
+    window.catalog.load_profiles()
+    qtbot.waitUntil(lambda: window.view_section.list.count() == 3, timeout=TIMEOUT)
+    sp, rp = window.settings_panel, window.run_panel
+    assert sp.keep_master.isChecked()  # default on
+    assert "4×" in sp.keep_master_hint.text()
+    sp.keep_master.setChecked(False)
+    assert not rp.start_button.isEnabled()
+    assert "at least one viewing copy" in sp.keep_master_hint.text()
+    assert "Cannot start" in rp.stage_label.text()
+    _tick_profile(window, "mp4-h264-aac")
+    assert rp.start_button.isEnabled()
+    assert "No archival master" in sp.keep_master_hint.text()
+
+
+def test_no_master_job_produces_views_only(qtbot, window, env: Path) -> None:
+    import json
+
+    window.catalog.load_profiles()
+    qtbot.waitUntil(lambda: window.view_section.list.count() == 3, timeout=TIMEOUT)
+    _tick_profile(window, "mp4-h264-aac")
+    window.settings_panel.keep_master.setChecked(False)
+    (item,) = add_and_wait(qtbot, window, [env / "pal_tff.avi"])
+    seen_stages = []
+    window.controller.runUpdated.connect(lambda it, st: seen_stages.append(st.stage_text()))
+    with qtbot.waitSignal(window.controller.batchFinished, timeout=TIMEOUT):
+        window.start_queue()
+    assert item.status.value == "done"
+    assert window.model.data(window.model.index(0, 2)) == "Done (viewing copies only)"
+    assert any("Temporary master" in s for s in seen_stages)
+    assert "no archival master kept" in window.run_panel.stage_label.text()
+    assert (env / "pal_tff.deint.mp4-h264-aac.mp4").exists()
+    assert not (env / "pal_tff.deint.mkv").exists()
+    assert not list(env.glob(".*nomaster*"))  # temporary master removed
+    assert [o["kind"] for o in item.outputs] == ["view"]
+    jobs = [json.loads(x) for x in (env.parent / "argv.log").read_text(encoding="utf-8").splitlines()]
+    assert any(a[0] == "run-job" for a in jobs)

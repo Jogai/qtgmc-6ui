@@ -80,6 +80,7 @@ class JobItem:
     progress: float | None = None  # 0..1 while running
     outputs: list[dict[str, Any]] = field(default_factory=list)
     cancelling: bool = False
+    keep_master: bool = True  # of the last run
 
     @property
     def name(self) -> str:
@@ -128,6 +129,8 @@ class JobItem:
         text = STATUS_TEXT[self.status]
         if self.status == JobStatus.ANALYZING and self.analysis_progress:
             text = f"Analyzing: {self.analysis_progress}"
+        elif self.status == JobStatus.DONE and not self.keep_master:
+            text = "Done (viewing copies only)"
         elif self.status == JobStatus.RUNNING and self.cancelling:
             text = "Cancelling…"
         elif self.status == JobStatus.RUNNING and self.progress is not None:

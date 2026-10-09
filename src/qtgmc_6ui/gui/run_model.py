@@ -59,6 +59,7 @@ class RunState:
     cancelled: bool = False  # confirmed by the backend's ``cancelled`` event
     cancelling: bool = False  # cancel requested, not yet confirmed
     cancel_unconfirmed: bool = False  # the process ended without confirming cleanup
+    keep_master: bool = True  # False: the master is temporary (viewing copies only)
     exit_code: int | None = None
 
     @property
@@ -85,6 +86,8 @@ class RunState:
             label = f"Viewing copy: {self.stage_label}"
         elif self.stage in STAGE_LABELS and self.stage_label in ("", self.stage):
             label = STAGE_LABELS[self.stage]
+        if self.stage == "master" and not self.keep_master:
+            label = "Temporary master (QTGMC; deleted after the viewing copies)"
         if self.stage_total > 1:
             label += f"  ({self.stage_index}/{self.stage_total})"
         return label

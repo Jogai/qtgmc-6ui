@@ -81,3 +81,30 @@ def test_real_cancel_removes_partial(qtbot, window, reference_clip, tmp_path) ->
         window.controller.cancel()
     assert item.status.value == "cancelled" and item.error is None, item.error
     assert not list(tmp_path.glob("*.mkv*"))
+
+
+@pytest.mark.needs_qtgmc
+@pytest.mark.slow
+def test_real_no_master_job(qtbot, window, reference_clip, tmp_path) -> None:
+    from PySide6.QtCore import Qt
+
+    window.catalog.load_profiles()
+    qtbot.waitUntil(lambda: window.view_section.list.count() > 0, timeout=TIMEOUT)
+    lst = window.view_section.list
+    for r in range(lst.count()):
+        if lst.item(r).data(Qt.ItemDataRole.UserRole) == "mp4-h264-aac":
+            lst.item(r).setCheckState(Qt.CheckState.Checked)
+    out = tmp_path / "out"
+    out.mkdir()
+    sp = window.settings_panel
+    sp.keep_master.setChecked(False)
+    sp.out_dir.setText(str(out))
+    sp.preset_combo.setCurrentIndex(sp.preset_combo.findData("draft"))
+    (item,) = window.add_paths([str(reference_clip)])
+    qtbot.waitUntil(lambda: item.analysis is not None or item.error is not None, timeout=TIMEOUT)
+    with qtbot.waitSignal(window.controller.batchFinished, timeout=600_000):
+        window.start_queue()
+    assert item.status.value == "done", item.error
+    names = sorted(p.name for p in out.iterdir())
+    assert names == [f"{reference_clip.stem}.deint.mp4-h264-aac.mp4"], names  # no master, no hidden temp
+    assert [o["kind"] for o in item.outputs] == ["view"]

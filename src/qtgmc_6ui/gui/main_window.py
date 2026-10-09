@@ -39,6 +39,7 @@ class MainWindow(QMainWindow):
         self.doctor_result: CliResult | None = None
         self._doctor_call: CliCall | None = None
         self._closing = False
+        self._last_doctor_line = ""
 
         self.banner = Banner()
         self.banner.actionClicked.connect(self.show_doctor)
@@ -81,6 +82,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"{paths.DISPLAY_NAME} {__version__} — backend: {backend_display()}")
         self._restore_layout()
         self.preview.set_master(self.settings_panel.master_settings())
+        self._update_start()
         prune_preview_cache()
         if run_startup_checks:
             self.run_startup_checks()
@@ -124,6 +126,8 @@ class MainWindow(QMainWindow):
         self.analysis_panel.decisionChanged.connect(self._on_decision)
         self.analysis_panel.previewRequested.connect(self._show_fields_preview)
         self.settings_panel.changed.connect(lambda: self.preview.set_master(self.settings_panel.master_settings()))
+        self.settings_panel.changed.connect(self._update_start)
+        self.view_section.selectionChanged.connect(self._update_start)
         self.model.itemChanged.connect(self._on_item_changed)
         c.log.connect(self.run_panel.log.append)
         c.analysisDone.connect(self._on_analysis_done)
@@ -155,7 +159,10 @@ class MainWindow(QMainWindow):
             self._doctor_call.start()
         if msg:
             self.banner.show_message(msg[0], msg[1], "Details…")
-            self.run_panel.log.append("Startup check: " + msg[1].replace("<br>", "\n").replace("<b>", "").replace("</b>", ""))
+            line = "Startup check: " + msg[1].replace("<br>", "\n").replace("<b>", "").replace("</b>", "")
+            if line != self._last_doctor_line:
+                self.run_panel.log.append(line)
+                self._last_doctor_line = line
         else:
             self.banner.hide()
             self.statusBar().showMessage("Component check passed.", 8000)
@@ -202,6 +209,7 @@ class MainWindow(QMainWindow):
             master=master,
             views=[ViewCopySpec(pid) for pid in self.view_section.selected_ids()],
             force=item.force,
+            keep_master=self.settings_panel.keeps_master(),
             overwrite=self.settings_panel.overwrite.isChecked(),
             analysis=item.analysis,
         )
@@ -209,7 +217,7 @@ class MainWindow(QMainWindow):
     def start_queue(self) -> None:
         if self.controller.running:
             return
-        problem = self.settings_panel.validate() or self._duplicate_outputs()
+        problem = self.settings_panel.validate() or self._master_choice_problem() or self._duplicate_outputs()
         if problem:
             self.tabs.setCurrentIndex(TAB_SETTINGS)
             QMessageBox.warning(self, "Cannot start", problem)
@@ -229,22 +237,44 @@ class MainWindow(QMainWindow):
         if notes:
             self.run_panel.log.append(" ".join(notes))
 
+    def _master_choice_problem(self) -> str | None:
+        if self.settings_panel.keeps_master() or self.view_section.selected_ids():
+            return None
+        return ("Without the archival master at least one viewing copy is needed. Select a profile in "
+                "the Viewing copies tab, or tick \"Keep the archival master\".")
+
+    def _update_start(self) -> None:
+        """Start is only possible when the master/viewing-copy choice produces something."""
+        views = len(self.view_section.selected_ids())
+        self.settings_panel.set_views_selected(views)
+        problem = self._master_choice_problem()
+        running = self.controller.running
+        self.run_panel.start_button.setEnabled(not running and problem is None)
+        self.act_start.setEnabled(not running and problem is None)
+        self.run_panel.start_button.setToolTip(problem or "")
+        if problem and not running:
+            self.run_panel.stage_label.setText("Cannot start: no archival master and no viewing copy selected.")
+        elif not running and self.run_panel.stage_label.text().startswith("Cannot start: no archival"):
+            self.run_panel.stage_label.setText("Idle")
+
     def _duplicate_outputs(self) -> str | None:
-        """Two inputs with the same stem would write the same master (m5)."""
+        """Two inputs with the same stem would write the same master / viewing copies (m5)."""
         out_dir, tpl = self.settings_panel.output_dir(), self.settings_panel.name_template_text()
         seen: dict[Path, str] = {}
         for it in self.model.runnable():
             src = Path(it.path)
             master = (Path(out_dir) if out_dir else src.parent) / (tpl.format(stem=src.stem) + ".mkv")
             if master in seen:
-                return (f"{seen[master]} and {src.name} would both write the master {master.name}. "
-                        "Remove one of them from this run, or process them with different output folders.")
+                return (f"{seen[master]} and {src.name} would both write {master.stem}.* (master or viewing "
+                        "copies). Remove one of them from this run, or process them with different output folders.")
             seen[master] = src.name
         return None
 
     def _set_running(self, running: bool) -> None:
         self.run_panel.set_running(running)
         self.act_start.setEnabled(not running)
+        if not running:
+            self._update_start()
         self.act_cancel.setEnabled(running)
         self.settings_panel.setEnabled(not running)
         self.view_section.setEnabled(not running)
@@ -286,6 +316,8 @@ class MainWindow(QMainWindow):
         done = sum(1 for i in self.model.items if i.status == JobStatus.DONE)
         failed = sum(1 for i in self.model.items if i.status == JobStatus.FAILED)
         summary = f"Queue finished: {done} done" + (f", {failed} failed" if failed else "")
+        if done and not self.settings_panel.keeps_master():
+            summary += " — viewing copies only, no archival master kept"
         self.run_panel.show_batch_done(cancelled, summary)
         self._set_running(False)
 

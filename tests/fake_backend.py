@@ -167,6 +167,9 @@ def cmd_run_job(args, em: Emitter) -> int:
     _watch_cancel()
     text = sys.stdin.read() if args.job == "-" else Path(args.job).read_text(encoding="utf-8")
     job = m.JobSpec.from_dict(json.loads(text))
+    if not job.keep_master and not job.views:
+        raise QtgmcError(ErrorCode.USAGE, "--no-master needs at least one viewing copy",
+                         "add --view PROFILE, or keep the master")
     if not Path(job.input).is_file():
         raise QtgmcError(ErrorCode.INPUT_NOT_FOUND, f"input not found: {job.input}", "Check the path.")
     analysis = job.analysis or make_analysis(job.input)
@@ -180,8 +183,10 @@ def cmd_run_job(args, em: Emitter) -> int:
     out_dir = Path(job.output_dir) if job.output_dir else src.parent
     stem = job.name_template.format(stem=src.stem)
     master = Path(job.master_output) if job.master_output else out_dir / f"{stem}.mkv"
+    if not job.keep_master:  # hidden temporary master, deleted after the views (as jobs.temp_master_path)
+        master = out_dir / f".{stem}.nomaster.{os.getpid()}.tmp.mkv"
     views = [(v.profile, out_dir / f"{stem}.{v.profile}.mp4") for v in job.views]
-    planned = [str(master)] + [str(p) for _, p in views]
+    planned = ([str(master)] if job.keep_master else []) + [str(p) for _, p in views]
     em.start("run-job", job.input, planned)
     stages = [("setup", "", None)] + [("master", "", master)] + [("view", pid, p) for pid, p in views]
     frames = (analysis.probe.video.nb_frames or 274) * (2 if job.master.rate == m.RateMode.DOUBLE else 1)
@@ -205,7 +210,11 @@ def cmd_run_job(args, em: Emitter) -> int:
                     time.sleep(float(os.environ.get("FAKE_QTGMC_CANCEL_DELAY", "0")))
                     f.close()
                     out.unlink(missing_ok=True)
-                    em.cancelled([str(out)], finished)
+                    removed = [str(out)]
+                    if not job.keep_master and master.exists():
+                        master.unlink()
+                        finished = [x for x in finished if x != str(master)]
+                    em.cancelled(removed, finished)
                     em.done(int(ExitCode.CANCELLED))
                     return int(ExitCode.CANCELLED)
                 f.write(b"\0" * 64)
@@ -216,9 +225,13 @@ def cmd_run_job(args, em: Emitter) -> int:
                 time.sleep(delay)
             em.progress(name, frames, frames, 50.0, 0.0, time.monotonic() - t0)
         finished.append(str(out))
+    master_out = [m.OutputFile("master", str(master), None, frames, 10.96, master.stat().st_size)]
+    if not job.keep_master:
+        master.unlink()
+        master_out = []
     result = m.JobResult(
         input=job.input, analysis=analysis,
-        outputs=[m.OutputFile("master", str(master), None, frames, 10.96, master.stat().st_size)]
+        outputs=master_out
         + [m.OutputFile("view", str(p), pid, frames, 10.96, p.stat().st_size) for pid, p in views],
         elapsed_s=time.monotonic() - t0, average_fps=50.0, effective_master=job.master,
     )
