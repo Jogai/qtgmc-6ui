@@ -72,6 +72,33 @@ def test_y4m_support(vscore) -> None:
 
 
 @pytest.mark.needs_sandbox
+def test_geometry_problem(vscore) -> None:
+    import vapoursynth as vs
+
+    core = vscore.core
+    fmt = lambda f: core.std.BlankClip(width=16, height=16, format=f, length=1).format  # noqa: E731
+    assert graph.geometry_problem(fmt(vs.YUV420P8), 720, 576) == ""
+    assert graph.geometry_problem(fmt(vs.YUV422P8), 720, 486) == ""  # NTSC D1 4:2:2 works
+    assert "486" in graph.geometry_problem(fmt(vs.YUV420P8), 720, 486)  # 243-line 4:2:0 fields do not exist
+    assert "480 lines" in graph.geometry_problem(fmt(vs.YUV420P8), 720, 486)
+    assert "287" in graph.geometry_problem(fmt(vs.YUV444P8), 352, 287)
+    assert graph.geometry_problem(fmt(vs.GRAY8), 352, 288) == ""
+
+
+def test_encodable_path(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("QTGMC6UI_CACHE_DIR", str(tmp_path / "cache"))
+    assert graph.encodable_path("/x/ünï.avi") == "/x/ünï.avi"
+    raw = bytes(tmp_path) + b"/caf\xe9 latin1.mkv"
+    with open(raw, "wb") as f:
+        f.write(b"x")
+    p = os.fsdecode(raw)
+    link = graph.encodable_path(p)
+    link.encode("utf-8")
+    assert os.path.islink(link) and os.readlink(link.encode()) == raw and link.endswith(".mkv")
+    assert graph.encodable_path(p) == link  # idempotent
+
+
+@pytest.mark.needs_sandbox
 def test_open_source_errors(vscore, tmp_path) -> None:
     with pytest.raises(InputError) as ei:
         graph.open_source(vscore, str(tmp_path / "missing.avi"), FieldOrder.BFF, cachepath=str(tmp_path / "idx"))
@@ -92,8 +119,21 @@ def test_build_reference_trimmed(vscore, reference_clip, tmp_path) -> None:
     assert g.y4m_ok and g.width == 720 and g.height == 576 and g.format_name == "YUV420P8"
     assert g.source.num_frames == 274 and g.source.get_frame(0).props["_FieldBased"] == 1
     assert g.qtgmc_kwargs["source_match_mode"] == 3
+    assert g.color_range == "" and g.chroma_location == "topleft" and g.warnings == []  # DV: untagged range, top-left siting
     assert compare_fields(g.source[100:108], g.clip, tff=False).ok
     # post hook runs after deinterlacing
     g2 = graph.build(vscore, a, MasterSettings(preset=Preset.DRAFT, rate=RateMode.SINGLE), trim=(0, 3),
                      cachepath=str(tmp_path / "idx"), post=lambda c: c.std.Crop(left=8, right=8))
     assert g2.width == 704 and g2.frames_out == 4 and g2.fps_num == 25
+    # probe dimensions that differ from the decoded clip are refused (odd width would be cropped silently)
+    a.probe.video.width = 721
+    with pytest.raises(InputError) as ei:
+        graph.build(vscore, a, MasterSettings(preset=Preset.DRAFT), trim=(0, 3), cachepath=str(tmp_path / "idx"))
+    assert ei.value.code == ErrorCode.INPUT_FORMAT_UNSUPPORTED and "721x576" in ei.value.message
+    a.probe.video.width = 720
+    # a container frame rate that disagrees with the decoded stream is reported (VFR)
+    from fractions import Fraction
+
+    a.probe.video.fps = Fraction(30000, 1001)
+    g3 = graph.build(vscore, a, MasterSettings(preset=Preset.DRAFT), trim=(0, 3), cachepath=str(tmp_path / "idx"))
+    assert g3.warnings and "frame rate" in g3.warnings[0]
