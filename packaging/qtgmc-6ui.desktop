@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=qtgmc-6UI
+GenericName=Video Deinterlacer
+Comment=Deinterlace archival video with QTGMC (VapourSynth)
+Exec=qtgmc-6ui gui
+Icon=qtgmc-6ui
+Terminal=false
+StartupWMClass=qtgmc-6ui
+Categories=AudioVideo;Video;AudioVideoEditing;Qt;
+Keywords=deinterlace;deinterlacer;QTGMC;VapourSynth;interlaced;DV;VHS;archive;

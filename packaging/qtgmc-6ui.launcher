@@ -1,0 +1,29 @@
+#!/bin/sh
+# /usr/bin/qtgmc-6ui: runs the bundled venv (/usr/lib/qtgmc-6ui/venv, system site-packages
+# visible).  The venv's python is a symlink to the versioned /usr/bin/python3.X it was built
+# with; after Arch moves Python to a new minor that target is gone, so say so plainly
+# instead of failing with "bad interpreter".
+# -s: ignore ~/.local user site-packages (would shadow the bundled vsjetpack/jetpytools).
+# -Xutf8 / PYTHONUTF8: non-ASCII paths under any locale; the exports reach child processes
+# (the GUI runs the CLI with sys.executable).
+# Plugin dir and build-info default to /usr/lib/qtgmc-6ui (qtgmc_6ui.paths); they are
+# deliberately NOT exported: QTGMC6UI_PLUGIN_DIR switches build-info to development mode.
+venv=/usr/lib/qtgmc-6ui/venv
+py=$venv/bin/python
+if ! "$py" -c '' >/dev/null 2>&1; then
+    target=$(readlink "$py" 2>/dev/null)
+    msg="qtgmc-6ui: Arch updated python (the interpreter it was built with, ${target:-$py}, is gone or broken); reinstall/rebuild qtgmc-6ui (e.g. with your AUR helper's rebuild option)."
+    echo "$msg" >&2
+    if [ ! -t 2 ]; then
+        # started from the desktop menu: nobody sees stderr
+        if command -v notify-send >/dev/null 2>&1; then
+            notify-send -a qtgmc-6UI -i qtgmc-6ui "qtgmc-6UI cannot start" "$msg" 2>/dev/null
+        elif command -v kdialog >/dev/null 2>&1; then
+            kdialog --title qtgmc-6UI --error "$msg" 2>/dev/null
+        fi
+    fi
+    exit 4
+fi
+export PYTHONUTF8="${PYTHONUTF8:-1}" PYTHONNOUSERSITE="${PYTHONNOUSERSITE:-1}"
+# -P: do not put the current directory on sys.path (python -m would)
+exec "$py" -s -P -X utf8 -m qtgmc_6ui "$@"
