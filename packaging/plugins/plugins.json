@@ -1,0 +1,282 @@
+{
+  "schema": 1,
+  "comment": "Single source of truth for the bundled native VapourSynth plugins of qtgmc-6ui. Read by build.sh (via manifest.py) and by the PKGBUILD generator (source=/sha256sums=/depends=/makedepends=). Each source is fetched as 'filename::url' and verified by sha256; build.sh only reads the files from <srcdir> and never touches the network.",
+  "install_dir": "/usr/lib/qtgmc-6ui/plugins",
+  "sets": {
+    "required": ["akarin", "resize2", "mvutensils", "znedi3", "zsmooth"],
+    "all": ["akarin", "resize2", "mvutensils", "znedi3", "zsmooth", "dfttest2"],
+    "extra": ["vivtc", "vszip"]
+  },
+  "common_makedepends": ["python", "vapoursynth", "patch"],
+  "components": [
+    {
+      "name": "akarin",
+      "version": "1.5.0",
+      "tag": "v1.5.0",
+      "commit": "a72584a969972b4cfd1b1fd11a4b0e3350f83432",
+      "upstream": "https://github.com/Jaded-Encoding-Thaumaturgy/akarin-vapoursynth-plugin",
+      "license": "LGPL-3.0-only",
+      "license_files": ["COPYING.LESSER"],
+      "required": true,
+      "namespace": "akarin",
+      "identifier": "info.akarin.vsplugin",
+      "files": ["libakarin.so"],
+      "depends": ["llvm22-libs", "gcc-libs", "glibc"],
+      "makedepends": ["meson", "ninja", "llvm22"],
+      "build_system": "meson (LLVM JIT backend, -Dstatic-llvm=false, llvm-config of llvm22)",
+      "sources": [
+        {
+          "filename": "akarin-v1.5.0.tar.gz",
+          "url": "https://github.com/Jaded-Encoding-Thaumaturgy/akarin-vapoursynth-plugin/archive/refs/tags/v1.5.0.tar.gz",
+          "sha256": "83852c90feef47510b866b8244af035af00ea6b77118b95697eef362266fcb5b"
+        }
+      ],
+      "notes": "Needed by vsjetpack norm_expr (akarin.Expr). meson.build pins llvm >=20,<23; Arch's default llvm is 23, so the build uses extra/llvm22 through a meson native file (llvm-config=/usr/lib/llvm22/bin/llvm-config). llvm22 has no full static libs, hence -Dstatic-llvm=false and a runtime dependency on llvm22-libs (libLLVM.so.22.1, ~150 MB). Considered alternative: -Dasmjit=true drops LLVM entirely but compiles every C++ file with -mavx (SIGILL on pre-AVX CPUs, violates the generic x86-64 baseline) and only implements the legacy 'expr' path, not the expr2 features vsjetpack uses; rejected. If Arch drops llvm22, bump akarin to a release that accepts the then-current llvm."
+    },
+    {
+      "name": "resize2",
+      "version": "0.5.1",
+      "tag": "0.5.1",
+      "commit": "2e8d4f6289457c1c9588a4d5a1f65bb7dfec320e",
+      "upstream": "https://github.com/Jaded-Encoding-Thaumaturgy/vapoursynth-resize2",
+      "license": "LGPL-2.1-only",
+      "license_files": ["LICENSE.md"],
+      "required": true,
+      "namespace": "resize2",
+      "identifier": "dev.setsugen.resize2",
+      "files": ["libresize2.so"],
+      "depends": ["gcc-libs", "glibc"],
+      "makedepends": ["meson", "ninja"],
+      "build_system": "meson with a private, patched zimg subproject (what the zimg.wrap would fetch)",
+      "sources": [
+        {
+          "filename": "resize2-0.5.1.tar.gz",
+          "url": "https://github.com/Jaded-Encoding-Thaumaturgy/vapoursynth-resize2/archive/refs/tags/0.5.1.tar.gz",
+          "sha256": "54d01057818fd0794218ab43147461f803225eeea55766073b7b9aaa3093fe00"
+        },
+        {
+          "filename": "zimg-1ad1895d5ff0bbe69c61243f9996aede713d1b5f.tar.gz",
+          "url": "https://github.com/sekrit-twc/zimg/archive/1ad1895d5ff0bbe69c61243f9996aede713d1b5f.tar.gz",
+          "sha256": "264e545f54c8ed564e00ea11865b7e4391563a297dbd3935c611c24a8eee9a46",
+          "role": "subprojects/zimg (revision pinned in subprojects/zimg.wrap)",
+          "license": "WTFPL"
+        },
+        {
+          "filename": "graphengine-cb5b2ce13384ec2491f0c37256ea210034799f69.tar.gz",
+          "url": "https://github.com/sekrit-twc/graphengine/archive/cb5b2ce13384ec2491f0c37256ea210034799f69.tar.gz",
+          "sha256": "663bc958094280e3dabfa76a408296a51f5222f56115fd7782eae737edeaa179",
+          "role": "subprojects/zimg/graphengine (zimg submodule at 1ad1895)",
+          "license": "WTFPL"
+        }
+      ],
+      "notes": "Needed by vskernels (Catrom bob of the draft clip). Links a PATCHED zimg statically (-Wl,-Bsymbolic-functions), so Arch's zimg cannot replace it and it is not a runtime dependency."
+    },
+    {
+      "name": "mvutensils",
+      "version": "9",
+      "tag": "v9",
+      "commit": "0b76442ef31d6334cf32bbc7d997e7a19bc1816a",
+      "upstream": "https://github.com/myrsloik/mvutensils",
+      "license": "GPL-2.0-or-later",
+      "license_files": ["LICENSE"],
+      "required": true,
+      "namespace": "mvu",
+      "identifier": "com.vapoursynth.mvutensils",
+      "files": ["mvutensils.so"],
+      "depends": ["zimg", "fftw", "gcc-libs", "glibc"],
+      "makedepends": ["meson", "ninja", "zimg", "fftw"],
+      "build_system": "meson, only the baseline target 'mvutensils.so' is built (the .avx2/.zn4 whole-library variants and manifest.vs are skipped)",
+      "sources": [
+        {
+          "filename": "mvutensils-v9.tar.gz",
+          "url": "https://github.com/myrsloik/mvutensils/archive/refs/tags/v9.tar.gz",
+          "sha256": "5b4fa7dc6e6278c3bd2acd15be222e253e47c30cfa898619c2a02effd6de7dff"
+        }
+      ],
+      "notes": "PINNED TO v9: v10 removed the fields/tff arguments and vsjetpack 2.2.6 fails with 'AnalyseMany: Function does not take argument(s) named fields'. Bump together with vsjetpack (main has MVUtensils v10 support). The baseline library still runtime-dispatches its AVX2/AVX-512 kernels; with QTGMC6UI_MARCH=x86-64-v3/native the whole library additionally follows -march. Uses Arch's zimg (libzimg.so.2) and fftw (libfftw3f.so.3) at runtime."
+    },
+    {
+      "name": "znedi3",
+      "version": "3.3",
+      "tag": "r3.3",
+      "commit": "fc540224e887dbce773c02c2eba22ca53252b614",
+      "upstream": "https://github.com/sekrit-twc/znedi3",
+      "license": "GPL-2.0-only",
+      "license_files": ["gpl2.txt"],
+      "required": true,
+      "namespace": "znedi3",
+      "identifier": "xxx.abc.znedi3",
+      "files": ["vsznedi3.so", "nnedi3_weights.bin"],
+      "depends": ["gcc-libs", "glibc"],
+      "makedepends": ["make"],
+      "build_system": "upstream GNU Makefile: make X86=1 X86_AVX512=1 vsznedi3.so (SIMD kernels runtime-dispatched)",
+      "sources": [
+        {
+          "filename": "znedi3-r3.3.tar.gz",
+          "url": "https://github.com/sekrit-twc/znedi3/archive/refs/tags/r3.3.tar.gz",
+          "sha256": "206ac0e98f6152a7dc852e004c00c4294900deea77a6b53102e6e5d50e78f77c"
+        },
+        {
+          "filename": "graphengine-7bb77a5c062c610e7f44df6a59155cc3ab3e452a.tar.gz",
+          "url": "https://github.com/sekrit-twc/graphengine/archive/7bb77a5c062c610e7f44df6a59155cc3ab3e452a.tar.gz",
+          "sha256": "8a73a9ee1cbb2e62e182b0501365d71969165157e8ef6308cf76e2e053e44102",
+          "role": "submodule graphengine @ r3.3",
+          "license": "WTFPL"
+        },
+        {
+          "filename": "vsxx-11eb026af5517d69e1d3d6258d1b2c2040c508e7.tar.gz",
+          "url": "https://github.com/sekrit-twc/vsxx/archive/11eb026af5517d69e1d3d6258d1b2c2040c508e7.tar.gz",
+          "sha256": "2f0a453543b62386ef6050d56d12a991507d733f15aae0b5e1930ac4bcb2f0e7",
+          "role": "submodule vsxx @ r3.3",
+          "license": "LGPL-2.1"
+        }
+      ],
+      "notes": "Default QTGMC bobber (vsaa.NNEDI3 -> znedi3.nnedi3). The plugin reads nnedi3_weights.bin from the directory of vsznedi3.so, so both are installed side by side. GitHub tag archives have empty submodule dirs, hence the two extra pinned tarballs."
+    },
+    {
+      "name": "zsmooth",
+      "version": "0.20.0",
+      "tag": "0.20.0",
+      "commit": "187ae3011979b8064baf46034a2771b7f018a1c6",
+      "upstream": "https://github.com/adworacz/zsmooth",
+      "license": "MIT AND GPL-2.0-or-later",
+      "license_files": ["LICENSE"],
+      "required": true,
+      "namespace": "zsmooth",
+      "identifier": "com.adub.zsmooth",
+      "files": ["libzsmooth.so"],
+      "depends": ["glibc"],
+      "makedepends": ["zig"],
+      "build_system": "zig build, offline: every dependency tarball is placed in a private zig global cache with 'zig fetch' and checked against the hash in build.zig.zon",
+      "sources": [
+        {
+          "filename": "zsmooth-0.20.0.tar.gz",
+          "url": "https://github.com/adworacz/zsmooth/archive/refs/tags/0.20.0.tar.gz",
+          "sha256": "218d141fe0b0e1cac2c6a16f2d653dd2fb4ea6f0b8d0792232dbbe2107469600"
+        },
+        {
+          "filename": "vapoursynth-zig-344caabeae1f4168b69ea6975d6ef244583e7c63.tar.gz",
+          "url": "https://github.com/dnjulek/vapoursynth-zig/archive/344caabeae1f4168b69ea6975d6ef244583e7c63.tar.gz",
+          "sha256": "385dd211a8e98d0cfd78199d5e1cb93ff442558d4fec789aef247310ca974689",
+          "role": "zig dependency 'vapoursynth'",
+          "zig_hash": "vapoursynth-4.0.0-jLYMQ2SPAgCbH6_Kr5k8EUde77slXphbfx6P31vl3abc",
+          "license": "MIT"
+        },
+        {
+          "filename": "adworacz-fftw-579b516e6b39a2a96200d248fc3c96d1ad7d9841.tar.gz",
+          "url": "https://github.com/adworacz/fftw/archive/579b516e6b39a2a96200d248fc3c96d1ad7d9841.tar.gz",
+          "sha256": "b92b046271bacec5d2015bc6fd1e5425b23479d295dc26dfa08615c1598f28b9",
+          "role": "zig dependency 'fftw' (zig build wrapper, tag v3.3.11-2)",
+          "zig_hash": "fftw-3.3.11-2-EjV1I17WAgD0Lnb_BKT51TNd_56-eY4NBOPHO2IH_WHZ",
+          "license": "MIT"
+        },
+        {
+          "filename": "fftw-3.3.11.tar.gz",
+          "url": "https://www.fftw.org/fftw-3.3.11.tar.gz",
+          "sha256": "5630c24cdeb33b131612f7eb4b1a9934234754f9f388ff8617458d0be6f239a1",
+          "role": "transitive zig dependency: FFTW sources, compiled statically into libzsmooth.so",
+          "zig_hash": "N-V-__8AAJCaEgGHVjSvtXEujGF0v3EBM4ymRUQt_zk_DoWo",
+          "license": "GPL-2.0-or-later"
+        }
+      ],
+      "notes": "Needed for LosslessMode.POSTSMOOTH (anti-comb repair/remove_grain) and median_blur. Built with Arch's zig 0.16.0 (build.zig.zon minimum 0.15.2). Target x86_64-linux-gnu, -Dcpu=x86_64 by default (x86_64_v3 / native with QTGMC6UI_MARCH); zig does not use CFLAGS. FFTW (GPL-2.0-or-later) is linked statically, so the shipped binary is GPL-2.0-or-later as a whole."
+    },
+    {
+      "name": "dfttest2",
+      "version": "11.1.0",
+      "tag": "v11.1.0",
+      "commit": "5bad35779ade0e78d00770e2b55fa32e5358c600",
+      "upstream": "https://github.com/Ichunjo/vs-dfttest2",
+      "license": "GPL-2.0-or-later",
+      "license_files": ["vs-dfttest2/LICENSE"],
+      "required": false,
+      "namespace": "dfttest2_cpu",
+      "identifier": "io.github.amusementclub.dfttest2_cpu",
+      "files": ["libdfttest2_cpu.so"],
+      "depends": ["gcc-libs", "glibc"],
+      "makedepends": ["cmake", "ninja"],
+      "build_system": "cmake (CMakeLists.txt of the vs-wheels PyPI sdist; the git tag has no build system and an empty vectorclass submodule); sse2/avx2/avx512f kernels runtime-dispatched",
+      "sources": [
+        {
+          "filename": "vapoursynth_dfttest2_cpu-11.1.0.tar.gz",
+          "url": "https://files.pythonhosted.org/packages/13/a6/ab2b5ff13a13584fd46133711747646a525e80fea7703b1c4a4021870976/vapoursynth_dfttest2_cpu-11.1.0.tar.gz",
+          "sha256": "656b91c77b097ac521de89d216be34cea94164c2c7cb51c6baad149981859c49"
+        }
+      ],
+      "python_wheels": [
+        {
+          "filename": "dfttest2-11.0.0-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/cc/97/861b986073c4a44d32d045878c762f13cad76609b6bef8b336faeed688de/dfttest2-11.0.0-py3-none-any.whl",
+          "sha256": "869067bb309a8ffb4f5c5b8fe6a96cca164ac59879502ef4cb029505f8b7e4cc",
+          "role": "python module 'dfttest2' imported by vsdenoise.DFTTest; NOT built by build.sh, the venv step installs it (--no-deps)",
+          "license": "GPL-3.0-or-later"
+        }
+      ],
+      "notes": "Optional: only for the optional denoise (DENOISE_UNAVAILABLE without it). Upstream wheels build with clang++ -ffast-math; we use the system C++ compiler with makepkg CXXFLAGS plus -ffast-math (as upstream)."
+    },
+    {
+      "name": "vivtc",
+      "version": "2",
+      "tag": "R2",
+      "commit": "4734c8b8526998b11bb2f313dfd0b4ecf760cfae",
+      "upstream": "https://github.com/vapoursynth/vivtc",
+      "license": "LGPL-2.1-or-later",
+      "license_files": ["LICENSE"],
+      "required": false,
+      "namespace": "vivtc",
+      "identifier": "org.ivtc.v",
+      "files": ["vivtc.so"],
+      "depends": ["glibc"],
+      "makedepends": ["meson", "ninja"],
+      "build_system": "meson (plain C99)",
+      "sources": [
+        {
+          "filename": "vivtc-R2.tar.gz",
+          "url": "https://github.com/vapoursynth/vivtc/archive/refs/tags/R2.tar.gz",
+          "sha256": "567b6bf9b5d586a942c53dded93eb54b50ab50d65d2f7962f886684a607387b0"
+        }
+      ],
+      "notes": "Extra, not shipped by default: telecine detection uses FFmpeg idet/fieldmatch (architecture 1.8) and QTGMC does not use VFM/VDecimate. Recipe kept so it can be enabled cheaply."
+    },
+    {
+      "name": "vszip",
+      "version": "22.1.0",
+      "tag": "22.1.0",
+      "commit": "beb7a0ab0e4166580b76560ae3f7c7f5e376ac90",
+      "upstream": "https://github.com/dnjulek/vapoursynth-zip",
+      "license": "MIT",
+      "license_files": ["LICENSE"],
+      "required": false,
+      "namespace": "vszip",
+      "identifier": "com.julek.vszip",
+      "files": ["libvszip.so"],
+      "depends": ["glibc"],
+      "makedepends": ["zig"],
+      "build_system": "zig build, offline like zsmooth",
+      "sources": [
+        {
+          "filename": "vszip-22.1.0.tar.gz",
+          "url": "https://github.com/dnjulek/vapoursynth-zip/archive/refs/tags/22.1.0.tar.gz",
+          "sha256": "2189c343ad0a33bc4f10d8c80280d4dfd7a157f601105e96db30c436523f7513"
+        },
+        {
+          "filename": "vapoursynth-zig-b87ff61ce680fa5a4cf7d44a9cb4b605c5037432.tar.gz",
+          "url": "https://github.com/dnjulek/vapoursynth-zig/archive/b87ff61ce680fa5a4cf7d44a9cb4b605c5037432.tar.gz",
+          "sha256": "2d5c6104d9b11183eebc65298c36adff60f8dd82128bbcdc76611452d68c5c0c",
+          "role": "zig dependency 'vapoursynth'",
+          "zig_hash": "vapoursynth-4.0.0-jLYMQ6DjAgDFOODh8tdhWCw0iGHMPKiR4znTJwSyvV36",
+          "license": "MIT"
+        },
+        {
+          "filename": "zigimg-0bbe201a5591219177f2444371c2897746b47774.tar.gz",
+          "url": "https://github.com/zigimg/zigimg/archive/0bbe201a5591219177f2444371c2897746b47774.tar.gz",
+          "sha256": "4f145109a4c4eab3deeb49b1847be9a5826c1c3967a586e879d40e6943c4009c",
+          "role": "zig dependency 'zigimg'",
+          "zig_hash": "zigimg-0.1.0-8_eo2sGbFwCrsBjkTTP-kinCH62m5vmYDHQnQcngFuwh",
+          "license": "MIT"
+        }
+      ],
+      "notes": "Extra, not shipped by default: declared dependency of vsjetpack but verified unused by QTGMC with our settings. Recipe kept for later features."
+    }
+  ]
+}
