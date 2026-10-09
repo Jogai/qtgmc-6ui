@@ -168,3 +168,28 @@ def test_preview_output_mode(reference_clip: Path, tmp_path: Path, rate: str, he
     d = json.loads(r.stdout)
     assert (d["width"], d["height"], d["frames"]) == (720, height, frames)
     assert read_png(out.read_bytes())[:2] == (720, height)
+
+
+@pytest.mark.needs_qtgmc
+def test_output_window_maps_to_source_frame(reference_clip: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The trimmed QTGMC window is indexed correctly: the stacked output frames for N keep
+    frame N's original field lines (lossless, BFF: first output = bottom field lines)."""
+    import numpy as np
+
+    from qtgmc_6ui.models import FieldOrder, MasterSettings, PreviewMode, PreviewRequest, Preset
+
+    monkeypatch.setenv("QTGMC6UI_CACHE_DIR", str(tmp_path / "cache"))
+    rend = preview.Renderer()
+    try:
+        n = 100
+        req = PreviewRequest(str(reference_clip), n, PreviewMode.OUTPUT, FieldOrder.BFF,
+                             MasterSettings(preset=Preset.FASTER), str(tmp_path / "o.png"), window=4)
+        rend.render(req)
+        (g,) = rend.graphs.values()
+        first = next(iter(rend.graphs))[2]
+        src = np.asarray(rend.sources[str(reference_clip)].get_frame(n)[0])
+        o0 = np.asarray(g.clip.get_frame(2 * (n - first))[0])
+        o1 = np.asarray(g.clip.get_frame(2 * (n - first) + 1)[0])
+        assert (o0[1::2] == src[1::2]).all() and (o1[0::2] == src[0::2]).all()
+    finally:
+        rend.close()
