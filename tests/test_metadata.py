@@ -77,7 +77,8 @@ def test_untagged_gets_defaults(name, expected, masters):
 def test_frame_rate_and_count(name, rate, frames_mult, fps, masters):
     src = media_info(get_clip(name))
     out = media_info(masters(name, rate))
-    assert out.fps == fps, f"{out.fps} != {fps}"
+    # matroska has 1 ms timestamps: ffprobe reports 59.94 as 19001/317, so compare with tolerance
+    assert abs(float(out.fps) - float(fps)) / float(fps) < 1e-3, f"{out.fps} != {fps}"
     assert out.frames == src.frames * frames_mult
     assert abs(out.duration - src.duration) < 0.05
 
@@ -115,4 +116,4 @@ def test_dv_ntsc_411_master(masters):
     out = media_info(masters("dv_ntsc_bff"))
     src = media_info(get_clip("dv_ntsc_bff"))
     assert out.pix_fmt == "yuv411p" and _sar(out.sar) == _sar(src.sar)
-    assert out.frames == 2 * src.frames and out.fps == Fraction(60000, 1001)
+    assert out.frames == 2 * src.frames and abs(float(out.fps) - 59.94006) < 0.01
