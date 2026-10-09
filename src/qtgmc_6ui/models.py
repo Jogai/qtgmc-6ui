@@ -209,6 +209,8 @@ class VideoProbe(Serializable):
     pix_fmt: str = ""
     bit_depth: int = 8
     fps: Fraction = Fraction(25, 1)  # r_frame_rate
+    avg_fps: Fraction | None = None  # avg_frame_rate when ffprobe reports one (differs from fps on VFR sources)
+    start_time_s: float = 0.0  # stream start_time (A/V offset = video - audio start)
     sar: Fraction = Fraction(1, 1)
     dar: Fraction | None = None
     nb_frames: int | None = None  # exact when the container knows it, else estimated
@@ -227,6 +229,7 @@ class AudioProbe(Serializable):
     channel_layout: str = ""
     bit_depth: int | None = None
     duration_s: float = 0.0
+    start_time_s: float = 0.0
     language: str = ""
 
 
@@ -236,6 +239,7 @@ class ProbeInfo(Serializable):
     container: str = ""  # ffprobe format_name
     size_bytes: int = 0
     duration_s: float = 0.0
+    start_time_s: float = 0.0  # format start_time (earliest stream)
     video: VideoProbe = field(default_factory=VideoProbe)
     audio: list[AudioProbe] = field(default_factory=list)
     video_stream_index: int = 0
@@ -281,6 +285,9 @@ class IdetWindow(Serializable):
     after_fieldmatch: IdetCounts | None = None  # second pass "fieldmatch,idet" (multi), if run
     repeated_after_fieldmatch: RepeatCounts | None = None
     window_class: ContentClass = ContentClass.UNDETERMINED
+    combed_after_fieldmatch: int | None = None  # fieldmatch's "still interlaced" frames in the confirmation pass
+    span_frames: int | None = None  # frames ffmpeg output in this window (its final "frame=" count)
+    span_s: float | None = None  # their timeline span (final "time="); span_frames/span_s != fps -> VFR
 
 
 @dataclass
