@@ -78,7 +78,7 @@ def test_confirm_windows_runs_only_suspects(monkeypatch: pytest.MonkeyPatch) -> 
     seen: list[tuple[int, int]] = []
     out = telecine.confirm_windows("x.mkv", [full, sampled, clean], progress=lambda d, t: seen.append((d, t)))
     assert out == [full, sampled]
-    assert calls == [(0.0, 0, True), (30.0, 301, True)]
+    assert calls == [(0.0, 120, True), (30.0, 301, True)]  # exactly the window's frames
     assert seen == [(1, 2), (2, 2)]
     assert full.after_fieldmatch == TELE_AFTER[0] and full.repeated_after_fieldmatch == TELE_AFTER[1]
     assert clean.after_fieldmatch is None

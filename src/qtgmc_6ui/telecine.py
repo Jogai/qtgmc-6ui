@@ -61,18 +61,12 @@ def confirm_windows(
     """Fill ``after_fieldmatch`` / ``repeated_after_fieldmatch`` on suspect windows (in place), return them."""
     suspects = [w for w in windows if is_suspect(w)]
     for i, w in enumerate(suspects):
-        _single, multi, rep = run_idet_window(path, w.start_s, _request_frames(w), fieldmatch=True, ffmpeg=ffmpeg)
+        _single, multi, rep = run_idet_window(path, w.start_s, w.frames, fieldmatch=True, ffmpeg=ffmpeg)
         w.after_fieldmatch = multi
         w.repeated_after_fieldmatch = rep
         if progress:
             progress(i + 1, len(suspects))
     return suspects
-
-
-def _request_frames(w: IdetWindow) -> int:
-    """Frames to request for the confirmation pass: whole file for a full-scan window
-    (start 0, counted everything), else the window length."""
-    return 0 if (w.start_frame == 0 and w.start_s == 0.0) else w.frames
 
 
 def window_is_telecined(w: IdetWindow) -> bool:

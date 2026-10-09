@@ -5,7 +5,7 @@ Per window (n = frames, det = tff+bff+prog of the MULTI counts, rep = repeat rat
   interlaced    rep < 0.15, det/n >= MIN_DETERMINED_SHARE, (tff+bff)/det >= INTERLACED_SHARE
                 field order: tff if tff >= FIELD_ORDER_SHARE*(tff+bff), bff likewise, else None
                 (a suspect window whose confirmation pass says "still interlaced" counts
-                here too, judged on the after-fieldmatch counts)
+                here too when >= 80 % of ALL its after-fieldmatch frames are interlaced)
   progressive   rep < 0.15, det/n >= MIN_DETERMINED_SHARE, prog/det >= PROGRESSIVE_SHARE
   undetermined  otherwise (mostly static/undetermined frames, or no clear majority)
 
@@ -108,10 +108,12 @@ def window_verdict(w: IdetWindow) -> WindowVerdict:
     if telecine.is_suspect(w):
         if telecine.window_is_telecined(w):
             return WindowVerdict("telecined", None, w.multi)
-        # Signature present but fieldmatch says it stays interlaced: judge that pass.
-        after = _counts_verdict(w.after_fieldmatch) if w.after_fieldmatch is not None else None
-        if after is not None and after.kind == "interlaced":
-            return after
+        # Signature present but fieldmatch says it stays interlaced.  Judge that pass over
+        # ALL its frames: fieldmatch turns a telecined part into undetermined frames, so a
+        # mixed window must not pass as interlaced just because its determined frames are.
+        a = w.after_fieldmatch
+        if a is not None and a.total > 0 and (a.tff + a.bff) / a.total >= INTERLACED_SHARE:
+            return WindowVerdict("interlaced", field_order_of(a), a)
         return WindowVerdict("undetermined", None, w.multi)
     return _counts_verdict(w.multi)
 

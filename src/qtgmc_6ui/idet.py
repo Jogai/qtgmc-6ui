@@ -47,7 +47,8 @@ def plan_windows(
     Short files (<= IDET_FULL_SCAN_MAX_FRAMES or unknown length under 60 s) -> one
     window covering everything (frames = 0 means "no limit").  Otherwise IDET_WINDOWS
     windows of IDET_WINDOW_FRAMES evenly spaced between 2 % and 98 % of the duration.
-    ``windows`` / ``window_frames`` override the defaults; ``full_scan`` forces one window.
+    ``windows`` / ``window_frames`` override the defaults (and sample even short files
+    when they fit); ``full_scan`` forces one window.
     """
     n = max(1, int(windows or IDET_WINDOWS))
     w = max(1, int(window_frames or IDET_WINDOW_FRAMES))
@@ -55,9 +56,12 @@ def plan_windows(
     total = nb_frames if nb_frames and nb_frames > 0 else None
     if total is None and duration_s and duration_s > 0:
         total = int(round(duration_s * fps))
+    explicit = windows is not None or window_frames is not None
     if full_scan or total is None:
         return [(0, 0.0, 0)]
-    if total <= IDET_FULL_SCAN_MAX_FRAMES or (nb_frames is None and duration_s < IDET_UNKNOWN_LENGTH_FULL_SCAN_S):
+    if not explicit and (
+        total <= IDET_FULL_SCAN_MAX_FRAMES or (nb_frames is None and duration_s < IDET_UNKNOWN_LENGTH_FULL_SCAN_S)
+    ):
         return [(0, 0.0, 0)]
     if n * w >= total:
         return [(0, 0.0, 0)]
@@ -67,6 +71,21 @@ def plan_windows(
     for i in range(n):
         start = lo + (hi - lo) * i // (n - 1) if n > 1 else (lo + hi) // 2
         out.append((start, round(start / fps, 3), w))
+    return out
+
+
+def plan_sections(total_frames: int, fps: float, sections: int = IDET_WINDOWS, min_frames: int = 50) -> list[tuple[int, float, int]]:
+    """Split a short file into consecutive sections (used to separate mixed content)."""
+    fps = float(fps) if fps and fps > 0 else 25.0
+    n = max(2, min(int(sections), total_frames // min_frames))
+    if total_frames < 2 * min_frames:
+        return [(0, 0.0, 0)]
+    size = total_frames // n
+    out: list[tuple[int, float, int]] = []
+    for i in range(n):
+        start = i * size
+        frames = size if i < n - 1 else total_frames - start
+        out.append((start, round(start / fps, 3), frames))
     return out
 
 

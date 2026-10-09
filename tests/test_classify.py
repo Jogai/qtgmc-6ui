@@ -78,8 +78,13 @@ def test_window_suspect_but_fieldmatch_says_interlaced() -> None:
     w.after_fieldmatch = IdetCounts(bff=60)
     w.repeated_after_fieldmatch = RepeatCounts(neither=60)
     assert classify.classify_window(w) is ContentClass.INTERLACED_BFF
-    w.after_fieldmatch = IdetCounts(bff=30, undetermined=30, progressive=30)  # 50 % interlaced: neither
+    w.after_fieldmatch = IdetCounts(bff=30, undetermined=30, progressive=30)  # 33 % interlaced: neither
     assert classify.classify_window(w) is ContentClass.UNDETERMINED
+    # mixed: the telecined half became undetermined after fieldmatch -> not interlaced (sections decide)
+    w.after_fieldmatch = IdetCounts(tff=120, undetermined=120)
+    assert classify.classify_window(w) is ContentClass.UNDETERMINED
+    w.after_fieldmatch = IdetCounts(tff=48, undetermined=12)
+    assert classify.classify_window(w) is ContentClass.INTERLACED_TFF
 
 
 # --------------------------------------------------------------------------- files

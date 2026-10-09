@@ -200,6 +200,19 @@ def test_plan_overrides_and_no_overlap_near_threshold() -> None:
     assert len(plan) == 3 and all(p[2] == 100 for p in plan)
     # too many/large windows for the file -> full scan instead
     assert idet.plan_windows(2000, 80.0, 25.0, windows=10, window_frames=300) == [(0, 0.0, 0)]
+    # explicit overrides sample even a short file when they fit
+    plan = idet.plan_windows(240, 8.0, 30.0, windows=2, window_frames=100)
+    assert len(plan) == 2 and plan[0][0] == 5 and plan[1][0] == 135 and plan[1][2] == 100
+    assert idet.plan_windows(240, 8.0, 30.0, windows=3, window_frames=100) == [(0, 0.0, 0)]
+
+
+def test_plan_sections() -> None:
+    assert idet.plan_sections(240, 30.0) == [(0, 0.0, 60), (60, 2.0, 60), (120, 4.0, 60), (180, 6.0, 60)]
+    assert idet.plan_sections(1000, 25.0) == [(i * 200, i * 8.0, 200) for i in range(5)]
+    assert idet.plan_sections(130, 25.0) == [(0, 0.0, 65), (65, 2.6, 65)]
+    assert idet.plan_sections(99, 25.0) == [(0, 0.0, 0)]
+    secs = idet.plan_sections(1003, 25.0)
+    assert sum(s[2] for s in secs) == 1003
 
 
 # --------------------------------------------------------------------------- command shape
