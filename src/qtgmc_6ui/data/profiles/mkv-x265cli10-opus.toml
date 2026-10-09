@@ -1,0 +1,37 @@
+schema = 1
+id = "mkv-x265cli10-opus"
+name = "MKV – HEVC 10-bit (x265 CLI) + Opus"
+description = "Standalone x265 (CRF 20, preset slow, 10-bit) fed with y4m from the master, muxed with Opus 128 kb/s into Matroska, square pixels. Needs the x265 package."
+container = "matroska"
+extension = "mkv"
+
+[video]
+backend = "x265"
+encoder = "x265"
+rate_control = "crf"
+quality = 20.0
+bitrate_kbps = 0
+preset = "slow"
+tune = ""
+profile = ""
+level = ""
+pix_fmt = "yuv420p10le"
+extra_args = []
+rate = "keep"
+
+[video.scale]
+mode = "square"
+width = 0
+height = 0
+algorithm = "lanczos"
+
+[audio]
+encoder = "libopus"
+bitrate_kbps = 128
+sample_rate = 0
+channels = 0
+extra_args = []
+
+[audio.sox]
+enabled = false
+effects = []

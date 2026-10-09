@@ -1,0 +1,37 @@
+schema = 1
+id = "mkv-kvazaar-opus"
+name = "MKV – HEVC (kvazaar) + Opus"
+description = "Kvazaar HEVC (QP 24, preset slow, 8-bit) fed with y4m from the master, muxed with Opus 128 kb/s into Matroska, square pixels. Needs the kvazaar package."
+container = "matroska"
+extension = "mkv"
+
+[video]
+backend = "kvazaar"
+encoder = "kvazaar"
+rate_control = "qp"
+quality = 24.0
+bitrate_kbps = 0
+preset = "slow"
+tune = ""
+profile = ""
+level = ""
+pix_fmt = "yuv420p"
+extra_args = []
+rate = "keep"
+
+[video.scale]
+mode = "square"
+width = 0
+height = 0
+algorithm = "lanczos"
+
+[audio]
+encoder = "libopus"
+bitrate_kbps = 128
+sample_rate = 0
+channels = 0
+extra_args = []
+
+[audio.sox]
+enabled = false
+effects = []

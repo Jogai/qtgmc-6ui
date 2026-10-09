@@ -1,0 +1,38 @@
+schema = 1
+id = "mkv-h264-flac"
+name = "MKV – H.264 + FLAC (high quality)"
+description = "Near-transparent: H.264 (libx264, CRF 16, preset slower) with lossless FLAC audio in Matroska, anamorphic SAR kept, frame rate kept."
+container = "matroska"
+extension = "mkv"
+
+[video]
+backend = "ffmpeg"
+encoder = "libx264"
+rate_control = "crf"
+quality = 16.0
+bitrate_kbps = 0
+preset = "slower"
+tune = ""
+profile = ""
+level = ""
+pix_fmt = ""
+extra_args = []
+rate = "keep"
+
+[video.scale]
+mode = "keep"
+width = 0
+height = 0
+algorithm = "lanczos"
+
+[audio]
+encoder = "flac"
+bitrate_kbps = 0
+quality = 8.0
+sample_rate = 0
+channels = 0
+extra_args = []
+
+[audio.sox]
+enabled = false
+effects = []

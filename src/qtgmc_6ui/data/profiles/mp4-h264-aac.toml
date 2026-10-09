@@ -1,0 +1,37 @@
+schema = 1
+id = "mp4-h264-aac"
+name = "MP4 – H.264 + AAC (compatible)"
+description = "Plays everywhere: 8-bit H.264 (libx264, CRF 18, preset slow) with AAC 192 kb/s in MP4, square pixels, frame rate kept."
+container = "mp4"
+extension = "mp4"
+
+[video]
+backend = "ffmpeg"
+encoder = "libx264"
+rate_control = "crf"
+quality = 18.0
+bitrate_kbps = 0
+preset = "slow"
+tune = ""
+profile = "high"
+level = ""
+pix_fmt = "yuv420p"
+extra_args = []
+rate = "keep"
+
+[video.scale]
+mode = "square"
+width = 0
+height = 0
+algorithm = "lanczos"
+
+[audio]
+encoder = "aac"
+bitrate_kbps = 192
+sample_rate = 0
+channels = 0
+extra_args = []
+
+[audio.sox]
+enabled = false
+effects = []

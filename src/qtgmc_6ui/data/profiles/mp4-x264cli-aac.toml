@@ -1,0 +1,37 @@
+schema = 1
+id = "mp4-x264cli-aac"
+name = "MP4 – H.264 (x264 CLI) + AAC"
+description = "Standalone x264 (CRF 18, preset slow) fed with y4m from the master, muxed with AAC 192 kb/s into MP4, square pixels. Needs the x264 package."
+container = "mp4"
+extension = "mp4"
+
+[video]
+backend = "x264"
+encoder = "x264"
+rate_control = "crf"
+quality = 18.0
+bitrate_kbps = 0
+preset = "slow"
+tune = ""
+profile = "high"
+level = ""
+pix_fmt = "yuv420p"
+extra_args = []
+rate = "keep"
+
+[video.scale]
+mode = "square"
+width = 0
+height = 0
+algorithm = "lanczos"
+
+[audio]
+encoder = "aac"
+bitrate_kbps = 192
+sample_rate = 0
+channels = 0
+extra_args = []
+
+[audio.sox]
+enabled = false
+effects = []
