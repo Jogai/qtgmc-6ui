@@ -1,0 +1,1330 @@
+{
+ "schema": 1,
+ "ffmpeg_version": "n9.0.2",
+ "source": "probe muxes with read-back (muxmatrix.probe_all) on Arch ffmpeg n9.0.2-e5d0c32c4b0e",
+ "probes": [
+  {
+   "container": "avi",
+   "encoder": "aac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "ac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "alac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x557b496d8d00] Terminating thread with return code -1 (Operation not permitted) | [out#0/avi @ 0x557b496be8c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "avi",
+   "encoder": "eac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "flac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "libmp3lame",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "libopus",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x562ab78039c0] Terminating thread with return code -1 (Operation not permitted) | [out#0/avi @ 0x562ab78028c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "avi",
+   "encoder": "libvorbis",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "pcm_s16le",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "pcm_s24le",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "ffv1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "libaom-av1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "libsvtav1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "libtheora",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "libvpx",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "libvpx-vp9",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "libx264",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "libx265",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "file reads back as 'rawvideo' (not hevc)"
+  },
+  {
+   "container": "avi",
+   "encoder": "mpeg4",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "prores_ks",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "avi",
+   "encoder": "utvideo",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "aac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "ac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "alac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "eac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "flac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "libmp3lame",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "libopus",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "libvorbis",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "pcm_s16le",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "pcm_s24le",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "ffv1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "libaom-av1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "libsvtav1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "libtheora",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "libvpx",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "libvpx-vp9",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "libx264",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "libx265",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "mpeg4",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "prores_ks",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "matroska",
+   "encoder": "utvideo",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "aac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "ac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "alac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "eac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "flac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55838251b940] Terminating thread with return code -22 (Invalid argument) | [out#0/mov @ 0x55838251a8c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "mov",
+   "encoder": "libmp3lame",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "libopus",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55c0187b2b40] Terminating thread with return code -22 (Invalid argument) | [out#0/mov @ 0x55c0187b18c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "mov",
+   "encoder": "libvorbis",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[out#0/mov @ 0x55779c2008c0] Task finished with error code: -1094995529 (Invalid data found when processing input) | [out#0/mov @ 0x55779c2008c0] Terminating thread with return code -1094995529 (Invalid data found when processing input)"
+  },
+  {
+   "container": "mov",
+   "encoder": "pcm_s16le",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "pcm_s24le",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "ffv1",
+   "kind": "video",
+   "verdict": "ok_with_warning",
+   "note": "[mov @ 0x560bddc5e040] Using MS style video codec tag, the file may be unplayable!"
+  },
+  {
+   "container": "mov",
+   "encoder": "libaom-av1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x5628b7852640] Terminating thread with return code -22 (Invalid argument) | [out#0/mov @ 0x5628b7850f80] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "mov",
+   "encoder": "libsvtav1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[out#0/mov @ 0x55ea4b3ae000] Nothing was written into output file, because at least one of its streams received no packets. | SvtMalloc[info]: you have no memory leak"
+  },
+  {
+   "container": "mov",
+   "encoder": "libtheora",
+   "kind": "video",
+   "verdict": "ok_with_warning",
+   "note": "[mov @ 0x562104974040] Using MS style video codec tag, the file may be unplayable!"
+  },
+  {
+   "container": "mov",
+   "encoder": "libvpx",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x56019adf8680] Terminating thread with return code -1163346256 (Not yet implemented in FFmpeg, patches welcome) | [out#0/mov @ 0x56019adf6f80] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "mov",
+   "encoder": "libvpx-vp9",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x564657239680] Terminating thread with return code -22 (Invalid argument) | [out#0/mov @ 0x564657237f80] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "mov",
+   "encoder": "libx264",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "libx265",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "mpeg4",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "prores_ks",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mov",
+   "encoder": "utvideo",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "aac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "ac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "alac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "eac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "flac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "libmp3lame",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "libopus",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "libvorbis",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[out#0/mp4 @ 0x559e6b9518c0] Task finished with error code: -1094995529 (Invalid data found when processing input) | [out#0/mp4 @ 0x559e6b9518c0] Terminating thread with return code -1094995529 (Invalid data found when processing input)"
+  },
+  {
+   "container": "mp4",
+   "encoder": "pcm_s16le",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "pcm_s24le",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "ffv1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "libaom-av1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "libsvtav1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "libtheora",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55ea0e237f00] Terminating thread with return code -22 (Invalid argument) | [out#0/mp4 @ 0x55ea0e236f40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "mp4",
+   "encoder": "libvpx",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x561068437680] Terminating thread with return code -22 (Invalid argument) | [out#0/mp4 @ 0x561068435f80] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "mp4",
+   "encoder": "libvpx-vp9",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "libx264",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "libx265",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "mpeg4",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mp4",
+   "encoder": "prores_ks",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x563a2b597280] Terminating thread with return code -22 (Invalid argument) | [out#0/mp4 @ 0x563a2b590f40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "mp4",
+   "encoder": "utvideo",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55ba1d520f80] Terminating thread with return code -22 (Invalid argument) | [out#0/mp4 @ 0x55ba1d51ff40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "aac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mpegts",
+   "encoder": "ac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mpegts",
+   "encoder": "alac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[mpegts @ 0x555d02be69c0] frame size not set | [mpegts @ 0x555d02be69c0] Stream 0, codec alac, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "eac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mpegts",
+   "encoder": "flac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[mpegts @ 0x5642e5f8e9c0] frame size not set | [mpegts @ 0x5642e5f8e9c0] Stream 0, codec flac, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "libmp3lame",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mpegts",
+   "encoder": "libopus",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mpegts",
+   "encoder": "libvorbis",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[mpegts @ 0x56538ff089c0] frame size not set | [mpegts @ 0x56538ff089c0] Stream 0, codec vorbis, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "pcm_s16le",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[mpegts @ 0x56268212a9c0] frame size not set | [mpegts @ 0x56268212a9c0] Stream 0, codec pcm_s16le, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "pcm_s24le",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[mpegts @ 0x557bd79cf9c0] frame size not set | [mpegts @ 0x557bd79cf9c0] Stream 0, codec pcm_s24le, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "ffv1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[mpegts @ 0x56047dc03040] Stream 0, codec ffv1, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "libaom-av1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[libaom-av1 @ 0x558b3825ac40] Neither bitrate nor constrained quality specified, using default CRF of 32 | [mpegts @ 0x558b3825a080] Stream 0, codec av1, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "libsvtav1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[mpegts @ 0x55db9d142100] Stream 0, codec av1, is muxed as a private data stream and may not be recognized upon reading. | SvtMalloc[info]: you have no memory leak"
+  },
+  {
+   "container": "mpegts",
+   "encoder": "libtheora",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[mpegts @ 0x5587e6732040] Stream 0, codec theora, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "libvpx",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[libvpx @ 0x55d93cd10c40] Neither bitrate nor constrained quality specified, using default CRF of 32 and bitrate of 256kbit/sec | [mpegts @ 0x55d93cd10080] Stream 0, codec vp8, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "libvpx-vp9",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[libvpx-vp9 @ 0x55c5e78b5c40] Neither bitrate nor constrained quality specified, using default CRF of 32 | [mpegts @ 0x55c5e78b5080] Stream 0, codec vp9, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "libx264",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mpegts",
+   "encoder": "libx265",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mpegts",
+   "encoder": "mpeg4",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "mpegts",
+   "encoder": "prores_ks",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[mpegts @ 0x55938a447040] Stream 0, codec prores, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "mpegts",
+   "encoder": "utvideo",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[mpegts @ 0x5558ebcea040] Stream 0, codec utvideo, is muxed as a private data stream and may not be recognized upon reading."
+  },
+  {
+   "container": "nut",
+   "encoder": "aac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "ac3",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "alac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x5581dea88e40] Terminating thread with return code -22 (Invalid argument) | [out#0/nut @ 0x5581dea6d8c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "nut",
+   "encoder": "eac3",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "file reads back as 'ac3' instead of eac3"
+  },
+  {
+   "container": "nut",
+   "encoder": "flac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "libmp3lame",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "libopus",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "libvorbis",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "pcm_s16le",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "pcm_s24le",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "ffv1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "libaom-av1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "libsvtav1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "libtheora",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "libvpx",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "libvpx-vp9",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "libx264",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "libx265",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "mpeg4",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "prores_ks",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "nut",
+   "encoder": "utvideo",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogg",
+   "encoder": "aac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55874ddf68c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x55874ddf58c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "ac3",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x558bfb1d7c00] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x558bfb1d48c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "alac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55dbf1b17d00] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x55dbf1afd8c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "eac3",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55e092ea4c00] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x55e092ea18c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "flac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogg",
+   "encoder": "libmp3lame",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x559623a6c940] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x559623a6b8c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "libopus",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogg",
+   "encoder": "libvorbis",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogg",
+   "encoder": "pcm_s16le",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x5557950c87c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x5557950c78c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "pcm_s24le",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x5596879a27c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x5596879a18c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "ffv1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x562c87a3a000] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x562c87a32f40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "libaom-av1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x5648e60254c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x5648e6023f80] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "libsvtav1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[out#0/ogg @ 0x55680b35d000] Nothing was written into output file, because at least one of its streams received no packets. | SvtMalloc[info]: you have no memory leak"
+  },
+  {
+   "container": "ogg",
+   "encoder": "libtheora",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogg",
+   "encoder": "libvpx",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogg",
+   "encoder": "libvpx-vp9",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55c8acf8e500] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x55c8acf8cf80] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "libx264",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x563a8fc84980] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x563a8fc83000] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "libx265",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x563223d204c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x563223d1f000] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "mpeg4",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55a39f7358c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x55a39f731f40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "prores_ks",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x565310722100] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x56531071bf40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogg",
+   "encoder": "utvideo",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x5589f2300e00] Terminating thread with return code -22 (Invalid argument) | [out#0/ogg @ 0x5589f22fff40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "aac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55dfc1c968c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x55dfc1c958c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "ac3",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x561428798c00] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x5614287958c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "alac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55e6c6a02d00] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x55e6c69e88c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "eac3",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55c5ecb14c00] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x55c5ecb118c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "flac",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogv",
+   "encoder": "libmp3lame",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55e611285940] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x55e6112848c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "libopus",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogv",
+   "encoder": "libvorbis",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogv",
+   "encoder": "pcm_s16le",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x5590257e57c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x5590257e48c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "pcm_s24le",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55cbfb8c67c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x55cbfb8c58c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "ffv1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x559e02143000] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x559e0213bf40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "libaom-av1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x56550653a4c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x565506538f80] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "libsvtav1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[out#0/ogv @ 0x55780f66c000] Nothing was written into output file, because at least one of its streams received no packets. | SvtMalloc[info]: you have no memory leak"
+  },
+  {
+   "container": "ogv",
+   "encoder": "libtheora",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogv",
+   "encoder": "libvpx",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "ogv",
+   "encoder": "libvpx-vp9",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x56184d308500] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x56184d306f80] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "libx264",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55a7fabbb980] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x55a7fabba000] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "libx265",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55b3122cd4c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x55b3122cc000] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "mpeg4",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55ca872c78c0] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x55ca872c3f40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "prores_ks",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55563548b100] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x555635484f40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "ogv",
+   "encoder": "utvideo",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55c65a497e00] Terminating thread with return code -22 (Invalid argument) | [out#0/ogv @ 0x55c65a496f40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "aac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55fe885e68c0] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x55fe885e58c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "ac3",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x5611d3bb8c00] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x5611d3bb58c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "alac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55caa056fd00] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x55caa05558c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "eac3",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55e83ca6fc00] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x55e83ca6c8c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "flac",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55a78ece67c0] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x55a78ece58c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "libmp3lame",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55d90120f940] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x55d90120e8c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "libopus",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "webm",
+   "encoder": "libvorbis",
+   "kind": "audio",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "webm",
+   "encoder": "pcm_s16le",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x5644a4f887c0] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x5644a4f878c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "pcm_s24le",
+   "kind": "audio",
+   "verdict": "fail",
+   "note": "[af#0:0 @ 0x55eb6595a7c0] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x55eb659598c0] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "ffv1",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x5574a158f000] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x5574a1587f40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "libaom-av1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "webm",
+   "encoder": "libsvtav1",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "webm",
+   "encoder": "libtheora",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55c561e7fd80] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x55c561e7ef40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "libvpx",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "webm",
+   "encoder": "libvpx-vp9",
+   "kind": "video",
+   "verdict": "ok",
+   "note": ""
+  },
+  {
+   "container": "webm",
+   "encoder": "libx264",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x558d40110980] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x558d4010f000] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "libx265",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55d548c374c0] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x55d548c36000] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "mpeg4",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x5593843668c0] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x559384362f40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "prores_ks",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x5633d285a100] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x5633d2853f40] Nothing was written into output file, because at least one of its streams received no packets."
+  },
+  {
+   "container": "webm",
+   "encoder": "utvideo",
+   "kind": "video",
+   "verdict": "fail",
+   "note": "[vf#0:0 @ 0x55d11d7b7e00] Terminating thread with return code -22 (Invalid argument) | [out#0/webm @ 0x55d11d7b6f40] Nothing was written into output file, because at least one of its streams received no packets."
+  }
+ ]
+}

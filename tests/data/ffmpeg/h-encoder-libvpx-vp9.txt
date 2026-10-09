@@ -1,0 +1,67 @@
+Encoder libvpx-vp9 [libvpx VP9]:
+    General capabilities: dr1 delay threads reorderedopaque 
+    Threading capabilities: other
+    Supported pixel formats: yuv420p yuva420p yuv422p yuva422p yuv440p yuv444p yuva444p yuv420p10le yuva420p10le yuv422p10le yuva422p10le yuv440p10le yuv444p10le yuva444p10le yuv420p12le yuv422p12le yuv440p12le yuv444p12le yuva444p12le gbrp gbrap gbrp10le gbrap10le gbrp12le gbrap12le
+libvpx-vp9 encoder AVOptions:
+  -lag-in-frames     <int>        E..V....... Number of frames to look ahead for alternate reference frame selection (from -1 to INT_MAX) (default -1)
+  -arnr-maxframes    <int>        E..V....... altref noise reduction max frame count (from -1 to INT_MAX) (default -1)
+  -arnr-strength     <int>        E..V....... altref noise reduction filter strength (from -1 to INT_MAX) (default -1)
+  -arnr-type         <int>        E..V....... altref noise reduction filter type (from -1 to INT_MAX) (default -1)
+     backward        1            E..V.......
+     forward         2            E..V.......
+     centered        3            E..V.......
+  -tune              <int>        E..V....... Tune the encoding to a specific scenario (from -1 to INT_MAX) (default -1)
+     psnr            0            E..V.......
+     ssim            1            E..V.......
+  -deadline          <int>        E..V....... Time to spend encoding, in microseconds. (from INT_MIN to INT_MAX) (default good)
+     best            0            E..V.......
+     good            1000000      E..V.......
+     realtime        1            E..V.......
+  -error-resilient   <flags>      E..V....... Error resilience configuration (default 0)
+     default                      E..V....... Improve resiliency against losses of whole frames
+     partitions                   E..V....... The frame partitions are independently decodable by the bool decoder, meaning that partitions can be decoded even though earlier partitions have been lost. Note that intra prediction is still done over the partition boundary.
+  -max-intra-rate    <int>        E..V....... Maximum I-frame bitrate (pct) 0=unlimited (from -1 to INT_MAX) (default -1)
+  -crf               <int>        E..V....... Select the quality for constant quality mode (from -1 to 63) (default -1)
+  -static-thresh     <int>        E..V....... A change threshold on blocks below which they will be skipped by the encoder (from 0 to INT_MAX) (default 0)
+  -drop-threshold    <int>        E..V....... Frame drop threshold (from INT_MIN to INT_MAX) (default 0)
+  -noise-sensitivity <int>        E..V....... Noise sensitivity (from 0 to 4) (default 0)
+  -undershoot-pct    <int>        E..V....... Datarate undershoot (min) target (%) (from -1 to 100) (default -1)
+  -overshoot-pct     <int>        E..V....... Datarate overshoot (max) target (%) (from -1 to 1000) (default -1)
+  -ts-parameters     <dictionary> E..V....... Temporal scaling configuration using a :-separated list of key=value parameters
+  -auto-alt-ref      <int>        E..V....... Enable use of alternate reference frames (2-pass only) (from -1 to 6) (default -1)
+  -cpu-used          <int>        E..V....... Quality/Speed ratio modifier (from -8 to 8) (default 1)
+  -lossless          <int>        E..V....... Lossless mode (from -1 to 1) (default -1)
+  -tile-columns      <int>        E..V....... Number of tile columns to use, log2 (from -1 to 6) (default -1)
+  -tile-rows         <int>        E..V....... Number of tile rows to use, log2 (from -1 to 2) (default -1)
+  -frame-parallel    <boolean>    E..V....... Enable frame parallel decodability features (default auto)
+  -aq-mode           <int>        E..V....... adaptive quantization mode (from -1 to 4) (default -1)
+     none            0            E..V....... Aq not used
+     variance        1            E..V....... Variance based Aq
+     complexity      2            E..V....... Complexity based Aq
+     cyclic          3            E..V....... Cyclic Refresh Aq
+     equator360      4            E..V....... 360 video Aq
+  -level             <float>      E..V....... Specify level (from -1 to 6.2) (default -1)
+  -row-mt            <boolean>    E..V....... Row based multi-threading (default auto)
+  -tune-content      <int>        E..V....... Tune content type (from -1 to 2) (default -1)
+     default         0            E..V....... Regular video content
+     screen          1            E..V....... Screen capture content
+     film            2            E..V....... Film content; improves grain retention
+  -corpus-complexity <int>        E..V....... corpus vbr complexity midpoint (from -1 to 10000) (default -1)
+  -enable-tpl        <boolean>    E..V....... Enable temporal dependency model (default auto)
+  -min-gf-interval   <int>        E..V....... Minimum golden/alternate reference frame interval (from -1 to INT_MAX) (default -1)
+  -speed             <int>        E..V.......  (from -16 to 16) (default 1)
+  -quality           <int>        E..V.......  (from INT_MIN to INT_MAX) (default good)
+     best            0            E..V.......
+     good            1000000      E..V.......
+     realtime        1            E..V.......
+  -vp8flags          <flags>      E..V.......  (default 0)
+     error_resilient              E..V....... enable error resilience
+     altref                       E..V....... enable use of alternate reference frames (VP8/2-pass only)
+  -arnr_max_frames   <int>        E..V....... altref noise reduction max frame count (from 0 to 15) (default 0)
+  -arnr_strength     <int>        E..V....... altref noise reduction filter strength (from 0 to 6) (default 3)
+  -arnr_type         <int>        E..V....... altref noise reduction filter type (from 1 to 3) (default 3)
+  -rc_lookahead      <int>        E..V....... Number of frames to look ahead for alternate reference frame selection (from 0 to 25) (default 25)
+  -sharpness         <int>        E..V....... Increase sharpness at the expense of lower PSNR (from -1 to 7) (default -1)
+
+
+Exiting with exit code 0
