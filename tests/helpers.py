@@ -80,11 +80,16 @@ def audio_duration(path: Path | str, index: int = 0) -> float:
 
 # ---------------------------------------------------------------- CLI
 
-def cli(*args: str, env: dict[str, str] | None = None, timeout: float = 900,
+def cli(*args: str, env: dict[str, str | None] | None = None, timeout: float = 900,
         cwd: Path | None = None) -> subprocess.CompletedProcess:
-    """Run ``python -m qtgmc_6ui ...`` as a user would; stdout/stderr captured as text."""
+    """Run ``python -m qtgmc_6ui ...`` as a user would; stdout/stderr captured as text.
+    ``env`` values of None remove the variable (e.g. LC_ALL for the LANG=C runs)."""
     e = dict(os.environ)
-    e.update(env or {})
+    for k, v in (env or {}).items():
+        if v is None:
+            e.pop(k, None)
+        else:
+            e[k] = v
     return subprocess.run([sys.executable, "-m", "qtgmc_6ui", *args], capture_output=True,
                           text=True, env=e, timeout=timeout, cwd=cwd)
 
@@ -156,3 +161,19 @@ def count_field_mismatches(src, out, tff: bool, rate: str = "double") -> tuple[i
 
 def expected_out_frames(src_frames: int, rate: str) -> int:
     return src_frames * 2 if rate == "double" else src_frames
+
+
+def deint_master(clip: Path, out: Path, *extra: str, field_order: str = "auto", rate: str = "double",
+                 preset: str | None = "draft", env: dict[str, str | None] | None = None,
+                 timeout: float = 1800) -> subprocess.CompletedProcess:
+    """Run ``deint`` to ``out``; asserts success and that the file exists."""
+    args = ["deint", str(clip), "-o", str(out), "--rate", rate, "--overwrite"]
+    if field_order != "auto":
+        args += ["--field-order", field_order]
+    if preset:
+        args += ["--preset", preset]
+    p = cli(*args, *extra, env=env, timeout=timeout)
+    assert p.returncode == 0, (
+        f"deint rc={p.returncode}\nstdout={p.stdout[-800:]}\nstderr={p.stderr[-1500:]}")
+    assert out.is_file(), "deint reported success but wrote no master"
+    return p

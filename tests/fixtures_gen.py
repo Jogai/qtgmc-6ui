@@ -102,6 +102,7 @@ NAMED: dict[str, ClipSpec] = {
     "res_1920x1080_bff": _spec(kind="bff", size=(1920, 1080), rate="30000/1001", seconds=1.2),
     # pixel formats
     "fmt_411_bff": _spec(kind="bff", size=(352, 240), rate="30000/1001", pix_fmt="yuv411p"),
+    "fmt_444_tff": _spec(kind="tff", size=(352, 288), rate="25/1", pix_fmt="yuv444p"),
     "fmt_422_tff": _spec(kind="tff", size=(352, 288), rate="25/1", pix_fmt="yuv422p"),
     "fmt_422p10_tff": _spec(kind="tff", size=(352, 288), rate="25/1", pix_fmt="yuv422p10le"),
     "fmt_422p10_bff": _spec(kind="bff", size=(352, 288), rate="25/1", pix_fmt="yuv422p10le"),
