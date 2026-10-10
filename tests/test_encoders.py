@@ -151,6 +151,7 @@ def test_parse_muxer_help() -> None:
 
 def test_detect_tools_without_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("PATH", str(tmp_path))  # nothing in PATH
+    monkeypatch.setattr(encoders, "_mem", {})  # an earlier test may have memoised the real ffmpeg
     tools = {t.name: t for t in encoders.detect_tools()}
     assert set(tools) == set(encoders.REQUIRED_TOOLS) | set(encoders.OPTIONAL_TOOLS)
     assert not any(t.available for t in tools.values())
