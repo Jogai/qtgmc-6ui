@@ -163,3 +163,12 @@ def test_windows_module_imports_first_without_cycle() -> None:
 def test_posix_stop_level_is_typed() -> None:
     with pytest.raises(TypeError):
         osdep.PosixHost()._signal_for(9)  # type: ignore[arg-type]
+
+
+def test_find_plugin_windows_versioned_names(tmp_path: Path) -> None:
+    w = WindowsHost()
+    for n in ("BestSource-R22-win64-msvc.dll", "MVUtensils.AVX2.dll", "MVUtensils.dll", "readme.txt"):
+        (tmp_path / n).write_bytes(b"")
+    assert w.find_plugin(tmp_path, "bestsource") == tmp_path / "BestSource-R22-win64-msvc.dll"
+    assert w.find_plugin(tmp_path, "mvutensils") == tmp_path / "MVUtensils.dll"
+    assert w.find_plugin(tmp_path, "akarin") is None and w.find_plugin(tmp_path / "x", "akarin") is None

@@ -187,7 +187,15 @@ class PosixHost:
 
     # ------------------------------------------------------------------ native libraries
     def shared_lib_name(self, name: str) -> str:
+        """Canonical file name (build-info records, messages).  Never assume it exists on disk:
+        resolve with find_plugin()."""
         return f"{self.shared_lib_prefix}{name}{self.shared_lib_suffix}"
+
+    def find_plugin(self, directory: Path, stem: str) -> Path | None:
+        """The plugin file for component ``stem`` in ``directory``: exactly ``lib<stem>.so``
+        (CPU variants such as ``.avx2.so`` are never picked); None when absent."""
+        cand = directory / self.shared_lib_name(stem)
+        return cand if cand.is_file() else None
 
     def install_hint(self, package: str) -> str:
         """Command that installs a system package ("pacman -S ffmpeg")."""
@@ -339,6 +347,10 @@ def install_hint(package: str) -> str:
 
 def package_ref(package: str) -> str:
     return HOST.package_ref(package)
+
+
+def find_plugin(directory: Path, stem: str) -> Path | None:
+    return HOST.find_plugin(directory, stem)
 
 
 def shared_lib_name(name: str) -> str:

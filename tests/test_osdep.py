@@ -178,3 +178,11 @@ def test_ascii_alias(tmp_path: Path) -> None:
 
 def test_dir_writable(tmp_path: Path) -> None:
     assert osdep.dir_writable(tmp_path) and not osdep.dir_writable(tmp_path / "missing")
+
+
+def test_find_plugin_posix(tmp_path: Path) -> None:
+    (tmp_path / "libbestsource.so").write_bytes(b"")
+    (tmp_path / "libmvutensils.avx2.so").write_bytes(b"")
+    assert osdep.find_plugin(tmp_path, "bestsource") == tmp_path / "libbestsource.so"
+    assert osdep.find_plugin(tmp_path, "mvutensils") is None  # a CPU variant is never picked
+    assert osdep.find_plugin(tmp_path / "missing", "bestsource") is None

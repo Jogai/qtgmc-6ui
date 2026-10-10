@@ -283,7 +283,7 @@ def startup_check() -> list[str]:
     sysdir = paths.system_vs_plugin_dir()
     if sysdir is None:
         problems.append(f"the vapoursynth Python module is not importable; install {osdep.package_ref('vapoursynth')}")
-    elif not (sysdir / osdep.shared_lib_name("bestsource")).is_file():
+    elif osdep.find_plugin(sysdir, "bestsource") is None:
         problems.append(f"bestsource plugin missing; install {osdep.package_ref('vapoursynth-plugin-bestsource')}")
     for name in vsenv.PYTHON_PACKAGES:
         try:

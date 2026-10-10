@@ -273,7 +273,8 @@ def script_text(analysis: AnalysisResult, settings: MasterSettings) -> str:
         "core = vs.core",
         "# plugins are loaded explicitly (the app disables autoloading)",
     ]
-    bs = (sysdir or osdep.fallback_vs_plugin_dir()) / osdep.shared_lib_name("bestsource")
+    vsdir = sysdir or osdep.fallback_vs_plugin_dir()
+    bs = osdep.find_plugin(vsdir, "bestsource") or vsdir / osdep.shared_lib_name("bestsource")
     lines.append(f"core.std.LoadPlugin({str(bs)!r})")
     for p in (bi.plugins if bi else []):
         if p.origin == "repo":

@@ -211,7 +211,12 @@ def _load_all(handle: VSCore, plugin_dir: Path, load_optional: bool) -> None:
             handle.skipped[p.name] = "optional plugins not requested"
             continue
         if p.origin == "repo":
-            path = Path(p.file) if Path(p.file).is_absolute() else (sysdir / p.file if sysdir else Path(p.file))
+            if Path(p.file).is_absolute() or sysdir is None:
+                path = Path(p.file)
+            else:  # the recorded name, else whatever the host's naming finds (versioned DLLs)
+                path = sysdir / p.file
+                if not path.is_file():
+                    path = osdep.find_plugin(sysdir, p.name) or path
             hint = f"install {osdep.package_ref('vapoursynth-plugin-' + p.name)}"
         else:
             path = Path(p.file) if Path(p.file).is_absolute() else plugin_dir / p.file

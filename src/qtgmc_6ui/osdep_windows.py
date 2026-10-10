@@ -227,6 +227,21 @@ class WindowsHost:
     def shared_lib_name(self, name: str) -> str:
         return f"{name}.dll"
 
+    def find_plugin(self, directory: Path, stem: str) -> Path | None:
+        """Windows plugin DLLs carry versions/toolchains in their names
+        (``BestSource-R22-win64-msvc.dll``): case-insensitive ``*<stem>*.dll``, CPU variants
+        skipped, first match in sorted order."""
+        try:
+            names = sorted(directory.iterdir())
+        except OSError:
+            return None
+        s = stem.lower()
+        for f in names:
+            n = f.name.lower()
+            if n.endswith(".dll") and s in n and not self.variant_suffix_re.search(f.name) and f.is_file():
+                return f
+        return None
+
     def install_hint(self, package: str) -> str:
         return f"get {package} for Windows and put it on PATH"
 
