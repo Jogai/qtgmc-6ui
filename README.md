@@ -2,50 +2,32 @@
 
 QTGMC deinterlacing for archival video on Arch Linux, with a Qt6 GUI and a scriptable CLI. The display name is qtgmc-6UI. The Arch package, the command and the directories are `qtgmc-6ui` (pkgname must be lowercase). The "6" stands for Qt6.
 
-Status: 0.1.0, not yet on the AUR (https://github.com/jogai/qtgmc-6ui).
+Status: 0.1.0, on the AUR as [qtgmc-6ui](https://aur.archlinux.org/packages/qtgmc-6ui). Source: https://github.com/jogai/qtgmc-6ui.
 
 ## What it is, and why
 
-The goal is a QTGMC package that installs and keeps working. The existing AUR `qtgmc` meta-package does not:
+qtgmc-6UI is an application for restoring interlaced archival video: VHS, Hi8 and Video8 captures, DV, DVD, HDV and AVCHD. It has a Qt6 GUI and a scriptable CLI on top of the same core, so you do not write VapourSynth scripts yourself. A file is analysed first (field order, and whether it is truly interlaced, telecined, mixed or progressive), then deinterlaced with QTGMC, by default to double rate. The result is an FFV1 + FLAC master in which the original field lines are copied back unchanged and only the missing lines are synthesised. Viewing copies (H.264, HEVC and others, from editable profiles) are encoded from that master, and the original file is never modified.
 
-- It depends on `vapoursynth-miscfilters-obsolete-git`, a name no AUR package provides. The plugin ships as `vapoursynth-plugin-misc-git`, so dependency resolution fails.
-- Nearly all its dependencies are `-git` packages, so upstream changes break it without warning.
-- `vapoursynth-plugin-havsfunc-git` pulls in `vapoursynth-plugin-vsjetpack-git`, reported upstream as unstable and a frequent cause of havsfunc breakage.
-- Every Arch Python bump forces a rebuild of all the Python-side plugin packages.
+Deinterlacing is done by `vsdeinterlace.QTempGaussMC` from vsjetpack 2.2.6, because havsfunc no longer contains QTGMC (r34 removed it, and the last working tag, r33, targets very old plugins). Telecined and mixed material is blocked unless you force it, because it needs IVTC with another tool, and the field order is never guessed.
 
-qtgmc-6UI therefore has no AUR dependencies and no `-git` sources. It uses official Arch packages where they exist and builds everything else from pinned upstream sources with sha256 checksums. It keeps working until a pin is deliberately bumped, and when an Arch update does require a rebuild it says so (see "doctor and the ABI story").
-
-The QTGMC implementation is `vsdeinterlace.QTempGaussMC` from vsjetpack 2.2.6. havsfunc no longer contains QTGMC: r34 removed it, and the last working tag, r33, targets very old plugins.
+The package has no AUR dependencies and no `-git` sources. Official Arch packages are used where they exist, and everything else is built from pinned upstream sources with sha256 checksums. It keeps working until a pin is deliberately bumped, and when an Arch update does require a rebuild it says so (see "doctor and the ABI story").
 
 ## Install
 
-AUR (placeholder, not published yet):
+From the AUR ([qtgmc-6ui](https://aur.archlinux.org/packages/qtgmc-6ui)):
 
 ```
 yay -S qtgmc-6ui        # or any AUR helper / manual makepkg
 ```
 
-Local test build from a working tree of this repository (needs `base-devel`; `-s` lets makepkg install the makedepends with sudo):
-
-```
-packaging/local-build.sh -s            # tars the tree, runs makepkg in ~/.cache/qtgmc-6ui-build
-sudo pacman -U ~/.cache/qtgmc-6ui-build/qtgmc-6ui-0.1.0-1-x86_64.pkg.tar.zst
-qtgmc-6ui doctor
-```
-
-Full package test (clean-chroot build if `devtools` is installed, namcap, `pacman -U`, doctor, reference encode with checks on the result):
-
-```
-packaging/test-package.sh /path/to/interlaced-clip.avi
-packaging/test-package.sh --no-chroot --steps build,namcap     # subset
-```
-
 The first build compiles the native plugins and takes a while. They target Arch's generic x86-64 baseline (SIMD kernels dispatch at runtime). Opt-in: plain `makepkg` with `QTGMC6UI_MARCH=x86-64-v3` or `native` (never copy such a build to another machine; chroot builds ignore the variable).
+
+To build from a checkout of this repository, and for the package tests, see [DEV.md](DEV.md).
 
 ## Requirements
 
 - Arch Linux (or derivative), x86_64. The CPU path is first-class; no GPU is needed or used.
-- Everything else is pulled in by pacman; see the dependency table. The venv is tied to the Python minor it was built with.
+- Everything else is pulled in by pacman; see the [dependency table](TECHNICAL.md#dependencies-repo-versus-bundled). The venv is tied to the Python minor it was built with.
 
 ## Usage
 
@@ -128,53 +110,6 @@ Bundled plugins are built against the repo VapourSynth, and the bundled venv aga
 
 `qtgmc-6ui doctor` checks the build-info, Python and VapourSynth ABI, python packages, core creation, every plugin load, a small QTGMC smoke run, ffmpeg/ffprobe and the optional tools, and the locale. `doctor --json` is the paste-into-a-bug-report format.
 
-## Dependencies: repo versus bundled
-
-Rule: use the official Arch repositories (`core`, `extra`) when a package exists there; bundle the rest from pinned upstream sources. Never depend on AUR packages. Checked 2026-10-09 with `pacman -Si`/`-Ss`; re-check at every version bump and switch to the repo if something moved in. Sources are in `packaging/aur/PKGBUILD` (generated blocks from `packaging/plugins/plugins.json` and `uv.lock` via `packaging/sync-pkgbuild.py`; all `sha256sums` pinned except the project tarball until the first tag).
-
-Runtime `depends` (all from official repos; versions are those seen on 2026-10-09):
-
-| dependency | why |
-|---|---|
-| python 3.14.7, vapoursynth 80 (R80, API 4.3) | runtime, including the `vapoursynth` Python module. PyPI wheels are not used. |
-| vapoursynth-plugin-bestsource R22 | source filter, loaded explicitly |
-| ffmpeg 9.0.2 | probe, idet/fieldmatch analysis, encoding (libx264, libx265, ffv1, flac, ...) |
-| pyside6 6.12.0, qt6-svg | GUI; qt6-svg for the SVG icon |
-| python-numpy, python-psutil, python-rich, python-typing_extensions | imported by the app and vsjetpack |
-| fftw, zimg, llvm22-libs, libgcc, libstdc++, glibc | runtime libraries of the bundled plugins |
-| hicolor-icon-theme, bash | icon directory; bash as listed in the PKGBUILD |
-
-Build-only (`makedepends`, official repos): `uv`, `python-build`, `python-hatchling`, `meson`, `ninja`, `cmake`, `make`, `patch`, `zig`, `llvm22`.
-
-Bundled native VapourSynth plugins (built in `build()`, installed to `/usr/lib/qtgmc-6ui/plugins`). In the official repos only mvtools, bestsource and deblock exist; vsjetpack 2.x needs none of mvtools (it uses mvutensils), so none of the others are usable here.
-
-| plugin | version / source | licence | why bundled |
-|---|---|---|---|
-| akarin | 1.5.0, GitHub tag (Jaded-Encoding-Thaumaturgy) | LGPL-3.0-only (SwiftShader Reactor: Apache-2.0) | Expr/PropExpr for vsjetpack; not in repos. Built against `llvm22` (its meson refuses llvm 23) |
-| resize2 | 0.5.1, GitHub tag + patched zimg and graphengine (pinned commits) | LGPL-2.1-only (zimg, graphengine: WTFPL) | vskernels bob resizer; needs a patched zimg linked statically, so the repo `zimg` cannot replace it |
-| mvutensils | v9, GitHub tag (myrsloik) | GPL-2.0-or-later | motion analysis for QTempGaussMC. Pinned to v9: v10 breaks vsjetpack 2.2.6 |
-| znedi3 | r3.3, GitHub tag (sekrit-twc) + graphengine, vsxx (pinned commits) + `nnedi3_weights.bin` | GPL-2.0-only (vsxx: LGPL-2.1) | default NNEDI3 bobber; not in repos |
-| zsmooth | 0.20.0, GitHub tag (adworacz), zig deps pinned, FFTW 3.3.11 static | MIT AND GPL-2.0-or-later | repair/removegrain for the lossless stage |
-| dfttest2 | plugin 11.1.0 (PyPI sdist), python module 11.0.0 (PyPI wheel) | GPL-2.0-or-later (module: GPL-3.0-or-later; vectorclass: Apache-2.0) | optional denoise only |
-
-`vivtc` and `vszip` recipes exist in `plugins.json` but are not shipped (not needed at runtime).
-
-Bundled Python packages (pure-Python wheels from PyPI, hashes from `uv.lock`, installed offline into `/usr/lib/qtgmc-6ui/venv`): `vsjetpack` 2.2.6 and `jetpytools` 3.1.2 (both MIT), plus the dfttest2 module above. Neither is in the official repos. The venv is created with the versioned system interpreter and system site-packages, so `vapoursynth`, `PySide6`, `numpy`, `psutil`, `rich` and `typing_extensions` come from pacman. `[tool.uv] exclude-dependencies` in `pyproject.toml` keeps uv from resolving them from PyPI (and from shadowing the system VapourSynth with PyPI wheels).
-
-Why bundle Python packages: Arch's guidelines do not forbid a private venv, and nothing in the repos provides vsjetpack/jetpytools. The AUR route would break the no-AUR rule and brings the rebuild-on-every-Python-bump problem described above. The guidelines discourage prebuilt `.whl` as sources; here they are pure-Python, hash-pinned and fetched through `source=()` so the build is offline and reproducible, and the app's own wheel is built from source (`python -m build`).
-
-Optional (`optdepends`, official repos): `x264`, `x265`, `kvazaar`, `sox`.
-
-## Development
-
-```
-uv venv --system-site-packages --python /usr/bin/python3.14 .venv
-uv sync --frozen
-QT_QPA_PLATFORM=offscreen .venv/bin/python -m pytest -q
-```
-
-This needs the Arch `vapoursynth`, `bestsource`, `ffmpeg` and `pyside6` packages in the system Python. Native plugins can be built with `packaging/plugins/build.sh` into any directory and used with `QTGMC6UI_PLUGIN_DIR` (and `QTGMC6UI_BUILD_INFO`) for development. Pytest markers: `needs_sandbox` (ffmpeg, vapoursynth, bestsource), `needs_qtgmc` (full stack), `needs_tool(name)` (x264/x265/kvazaar/sox), `slow`, `gui`. Development and the full suite (516 tests) were run in an Arch environment; the test fixtures (synthetic clips, reference file) come from `tests/fixtures_gen.py`. After editing pins or `uv.lock` run `python3 -I packaging/sync-pkgbuild.py` (`--check` to verify).
-
 ## Licensing
 
 The project is licensed under GPL-2.0-only.
@@ -193,3 +128,8 @@ Bundled components (full texts installed in `/usr/share/licenses/qtgmc-6ui/<comp
 - Variable frame rate sources get an averaged constant rate (warning).
 - Viewing-copy validity comes from probe-muxes. Some selectable combinations are flagged as possibly unplayable in players (for example FFV1 or PCM in MP4), even though ffmpeg accepts them.
 - 1080i at slow presets is slow and memory-hungry.
+
+## More
+
+- [TECHNICAL.md](TECHNICAL.md): the dependency decisions (repo versus bundled), what every upstream project is used for, and diagrams of the processing pipelines.
+- [DEV.md](DEV.md): development setup, tests, local package builds and releasing.
