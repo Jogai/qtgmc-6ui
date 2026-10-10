@@ -678,7 +678,7 @@ def run_view(
         raise OutputError(ErrorCode.OUTPUT_NOT_WRITABLE, f"output directory is not writable: {out_dir}", "", {"output": output})
     for tool in ("ffmpeg", "ffprobe", *profiles.required_tools(profile)):
         if shutil.which(tool) is None:
-            raise ComponentError(ErrorCode.TOOL_MISSING, f"profile '{profile.id}' needs {tool}, which is not installed", f"pacman -S {tool}", {"tool": tool, "profile": profile.id})
+            raise ComponentError(ErrorCode.TOOL_MISSING, f"profile '{profile.id}' needs {tool}, which is not installed", osdep.install_hint(tool), {"tool": tool, "profile": profile.id})
     problems = profiles.validate(profile, check_tools=False)
     if problems:
         raise EncodeError(ErrorCode.PROFILE_INVALID, f"profile '{profile.id}' is invalid: {problems[0]}", "run `qtgmc-6ui profiles validate`", {"profile": profile.id, "problems": problems})

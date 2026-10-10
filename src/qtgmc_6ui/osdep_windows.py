@@ -23,7 +23,7 @@ from collections.abc import Callable, MutableMapping
 from pathlib import Path
 from typing import Any
 
-from .osdep import APP_ID, StopLevel, TerminationCallback
+from .osdep_base import APP_ID, StopLevel, TerminationCallback
 
 _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
 _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
@@ -226,6 +226,12 @@ class WindowsHost:
     # ------------------------------------------------------------------ native libraries
     def shared_lib_name(self, name: str) -> str:
         return f"{name}.dll"
+
+    def install_hint(self, package: str) -> str:
+        return f"get {package} for Windows and put it on PATH"
+
+    def package_ref(self, package: str) -> str:
+        return f"'{package}'"
 
     def lib_component(self, file_stem: str) -> str:
         return file_stem.removeprefix("lib")

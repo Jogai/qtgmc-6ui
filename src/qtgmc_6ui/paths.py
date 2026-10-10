@@ -17,18 +17,21 @@ from pathlib import Path
 
 from . import osdep
 
-APP_ID = "qtgmc-6ui"
+APP_ID = osdep.APP_ID
 DISPLAY_NAME = "qtgmc-6UI"
 
-INSTALL_ROOT = osdep.install_root()
+def __getattr__(name: str) -> object:  # INSTALL_ROOT, computed per call (HOST may be swapped)
+    if name == "INSTALL_ROOT":
+        return osdep.install_root()
+    raise AttributeError(name)
 
 
 def plugin_dir() -> Path:
-    return Path(os.environ.get("QTGMC6UI_PLUGIN_DIR", INSTALL_ROOT / "plugins"))
+    return Path(os.environ.get("QTGMC6UI_PLUGIN_DIR", osdep.install_root() / "plugins"))
 
 
 def build_info_path() -> Path:
-    return Path(os.environ.get("QTGMC6UI_BUILD_INFO", INSTALL_ROOT / "build-info.json"))
+    return Path(os.environ.get("QTGMC6UI_BUILD_INFO", osdep.install_root() / "build-info.json"))
 
 
 def config_dir() -> Path:

@@ -134,3 +134,32 @@ def test_termination_handlers_with_mocks(monkeypatch: pytest.MonkeyPatch) -> Non
     assert set(installed) == {int(signal.SIGINT), 21}
     installed[int(signal.SIGINT)](int(signal.SIGINT), None)
     assert seen == [("SIGINT", True)]
+
+
+def test_call_time_values_follow_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    from qtgmc_6ui import doctor, paths, vsenv
+
+    for k in ("QTGMC6UI_PLUGIN_DIR", "QTGMC6UI_BUILD_INFO"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("ProgramFiles", r"D:\Apps")
+    monkeypatch.setattr(osdep, "HOST", WindowsHost())
+    root = Path(r"D:\Apps") / "qtgmc-6ui"
+    assert paths.INSTALL_ROOT == root and paths.plugin_dir() == root / "plugins"
+    assert paths.build_info_path() == root / "build-info.json"
+    assert vsenv.REPO_PLUGINS[0].file.endswith(".dll") and vsenv.repo_plugins()[0].file.endswith(".dll")
+    assert osdep.install_hint("ffmpeg") != "pacman -S ffmpeg" and "Arch" not in osdep.package_ref("ffmpeg")
+    monkeypatch.setenv("APPDATA", "x")
+    assert doctor._environment().get("APPDATA") == "x"
+
+
+def test_windows_module_imports_first_without_cycle() -> None:
+    import subprocess
+
+    code = "import sys; sys.platform = 'win32'; import qtgmc_6ui.osdep_windows as w; print(w.WindowsHost.name)"
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0 and r.stdout.strip() == "windows", r.stderr
+
+
+def test_posix_stop_level_is_typed() -> None:
+    with pytest.raises(TypeError):
+        osdep.PosixHost()._signal_for(9)  # type: ignore[arg-type]

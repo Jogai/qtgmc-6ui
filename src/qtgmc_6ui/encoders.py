@@ -23,7 +23,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from . import paths
+from . import osdep, paths
 from .errors import ComponentError, ErrorCode, UsageError
 from .models import EncoderInfo, EncoderOption, MuxerInfo, ToolInfo, from_dict, to_dict
 
@@ -65,8 +65,6 @@ def subprocess_env() -> dict[str, str]:
 def child_kwargs() -> dict[str, Any]:
     """Popen keyword arguments for every child: env, own session, dies with its parent
     (osdep.popen_kwargs) so a killed CLI leaves no orphan."""
-    from . import osdep
-
     return {"env": subprocess_env(), **osdep.popen_kwargs()}
 
 
@@ -76,7 +74,7 @@ def _capture(cmd: list[str], timeout: float = _CAPTURE_TIMEOUT_S) -> tuple[int, 
         raise ComponentError(
             ErrorCode.TOOL_MISSING,
             f"{cmd[0]} not found in PATH",
-            "install ffmpeg (pacman -S ffmpeg)" if cmd[0] in REQUIRED_TOOLS else f"install the optional package providing {cmd[0]}",
+            f"install ffmpeg ({osdep.install_hint('ffmpeg')})" if cmd[0] in REQUIRED_TOOLS else f"install the optional package providing {cmd[0]}",
             {"tool": cmd[0]},
         )
     try:
@@ -437,7 +435,7 @@ def tool_info(name: str) -> ToolInfo:
 def _tool_info(name: str) -> ToolInfo:
     path = shutil.which(name)
     if not path:
-        note = "required" if name in REQUIRED_TOOLS else f"optional (pacman -S {name})"
+        note = "required" if name in REQUIRED_TOOLS else f"optional ({osdep.install_hint(name)})"
         return ToolInfo(name=name, available=False, note=note)
     args, pattern = _VERSION_PATTERNS.get(name, (["--version"], r"(\d+(?:\.\d+)+)"))
     try:

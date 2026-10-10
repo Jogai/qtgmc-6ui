@@ -16,26 +16,13 @@ import re
 import sys
 import threading
 from collections.abc import Callable, MutableMapping
-from enum import Enum
 from pathlib import Path
 from typing import Any
 
-APP_ID = "qtgmc-6ui"
+from .osdep_base import APP_ID, StopLevel, TerminationCallback
+from .osdep_base import is_utf8_locale as _is_utf8_locale
 
-
-class StopLevel(Enum):
-    GRACEFUL = "graceful"  # ask the child (tree) to stop: SIGTERM / CTRL_BREAK
-    FORCE = "force"  # no negotiation: SIGKILL / TerminateJobObject
-
-
-# "Termination" callback: (signal name for messages/reasons, interactive) where interactive is
-# True for the terminal interrupt (Ctrl-C), whose repetition means "exit now".
-TerminationCallback = Callable[[str, bool], None]
-
-
-def _is_utf8_locale(value: str) -> bool:
-    v = value.lower().replace("-", "")
-    return "utf8" in v
+__all__ = ["APP_ID", "HOST", "PosixHost", "StopLevel", "TerminationCallback"]
 
 
 class PosixHost:
@@ -60,6 +47,8 @@ class PosixHost:
     def _signal_for(self, level: StopLevel) -> int:
         import signal
 
+        if not isinstance(level, StopLevel):
+            raise TypeError(f"expected a StopLevel, got {level!r}")
         return signal.SIGKILL if level == StopLevel.FORCE else signal.SIGTERM
 
     def _get_prctl(self) -> Any:
@@ -200,6 +189,14 @@ class PosixHost:
     def shared_lib_name(self, name: str) -> str:
         return f"{self.shared_lib_prefix}{name}{self.shared_lib_suffix}"
 
+    def install_hint(self, package: str) -> str:
+        """Command that installs a system package ("pacman -S ffmpeg")."""
+        return f"pacman -S {package}"
+
+    def package_ref(self, package: str) -> str:
+        """How hints name a system package ("the Arch package 'ffmpeg'")."""
+        return f"the Arch package '{package}'"
+
     def lib_component(self, file_stem: str) -> str:
         return file_stem.removeprefix(self.shared_lib_prefix)
 
@@ -334,6 +331,14 @@ def system_vs_plugin_dir() -> Path | None:
 
 def dir_writable(p: Path) -> bool:
     return HOST.dir_writable(p)
+
+
+def install_hint(package: str) -> str:
+    return HOST.install_hint(package)
+
+
+def package_ref(package: str) -> str:
+    return HOST.package_ref(package)
 
 
 def shared_lib_name(name: str) -> str:

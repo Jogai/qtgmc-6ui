@@ -35,9 +35,15 @@ OPTIONAL_NAMESPACES: tuple[str, ...] = ("dfttest2_cpu", "vivtc", "vszip", "ffms2
 DEFAULT_CACHE_MB_SD = 2048
 DEFAULT_CACHE_MB_HD = 6144
 
-REPO_PLUGINS: tuple[PluginInfo, ...] = (
-    PluginInfo("bestsource", "bs", "com.vapoursynth.bestsource", "R22", osdep.shared_lib_name("bestsource"), True, "repo"),
-)
+def repo_plugins() -> tuple[PluginInfo, ...]:
+    """Plugins from the system VapourSynth installation (file names are the host's)."""
+    return (PluginInfo("bestsource", "bs", "com.vapoursynth.bestsource", "R22", osdep.shared_lib_name("bestsource"), True, "repo"),)
+
+
+def __getattr__(name: str) -> object:  # REPO_PLUGINS, computed per call (HOST may be swapped)
+    if name == "REPO_PLUGINS":
+        return repo_plugins()
+    raise AttributeError(name)
 
 PYTHON_PACKAGES: tuple[str, ...] = ("vsjetpack", "jetpytools")
 OPTIONAL_PYTHON_PACKAGES: tuple[str, ...] = ("dfttest2",)
@@ -85,7 +91,7 @@ def import_vs() -> Any:
         raise ComponentError(
             ErrorCode.VS_IMPORT_FAILED,
             f"the vapoursynth Python module cannot be imported: {e}",
-            "install the Arch package 'vapoursynth' (the venv must see system site-packages)",
+            f"install {osdep.package_ref('vapoursynth')} (the venv must see system site-packages)",
             {"python": sys.executable},
         ) from e
 
@@ -190,7 +196,7 @@ def _load_all(handle: VSCore, plugin_dir: Path, load_optional: bool) -> None:
     bi = handle.build_info
     plugins = list(bi.plugins) if bi and bi.plugins else []
     if not any(p.origin == "repo" for p in plugins):
-        plugins = list(REPO_PLUGINS) + plugins
+        plugins = list(repo_plugins()) + plugins
     bundled = [p for p in plugins if p.origin != "repo"]
     if bundled and not plugin_dir.is_dir():
         raise ComponentError(
@@ -206,7 +212,7 @@ def _load_all(handle: VSCore, plugin_dir: Path, load_optional: bool) -> None:
             continue
         if p.origin == "repo":
             path = Path(p.file) if Path(p.file).is_absolute() else (sysdir / p.file if sysdir else Path(p.file))
-            hint = f"install the Arch package 'vapoursynth-plugin-{p.name}'"
+            hint = f"install {osdep.package_ref('vapoursynth-plugin-' + p.name)}"
         else:
             path = Path(p.file) if Path(p.file).is_absolute() else plugin_dir / p.file
             hint = "reinstall/rebuild qtgmc-6ui (the bundled plugin file is missing or broken)"

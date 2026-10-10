@@ -39,7 +39,6 @@ from .models import (
     ToolInfo,
 )
 
-ENV_KEYS = osdep.diagnostic_env_keys()
 REQUIRED_TOOLS = ("ffmpeg", "ffprobe")
 OPTIONAL_TOOLS = ("x264", "x265", "kvazaar", "sox")
 _VERSION_ARGS = {"ffmpeg": ["-version"], "ffprobe": ["-version"], "x264": ["--version"], "x265": ["--version"],
@@ -74,7 +73,7 @@ def detect_tools() -> list[ToolInfo]:
 
 
 def _environment() -> dict[str, str]:
-    env = {k: os.environ[k] for k in ENV_KEYS if k in os.environ}
+    env = {k: os.environ[k] for k in osdep.diagnostic_env_keys() if k in os.environ}
     env["filesystem_encoding"] = sys.getfilesystemencoding()
     env["platform"] = platform.platform()
     env["cpu"] = platform.processor() or platform.machine()
@@ -125,7 +124,7 @@ def run(*, load_plugins: bool = True, smoke: bool = True) -> DoctorReport:
     vs_ok = "vapoursynth" in rep.runtime and not rep.runtime["vapoursynth"].startswith("missing")
     if not vs_ok:
         checks.append(DoctorCheck("vapoursynth_import", "vapoursynth module", Status.FAIL, rep.runtime.get("vapoursynth", ""),
-                                  "install the Arch package 'vapoursynth'"))
+                                  f"install {osdep.package_ref('vapoursynth')}"))
     if bi is not None and vs_ok:
         problems = vsenv.check_abi(bi)
         py = [p for p in problems if "python" in p]
@@ -167,7 +166,7 @@ def run(*, load_plugins: bool = True, smoke: bool = True) -> DoctorReport:
                 table = {row["namespace"]: row for row in vsenv.plugin_table(vc.core)}
                 plugins = list(bi.plugins)
                 if not any(p.origin == "repo" for p in plugins):
-                    plugins = list(vsenv.REPO_PLUGINS) + plugins
+                    plugins = list(vsenv.repo_plugins()) + plugins
                 for p in plugins:
                     ns = p.namespace or next((n for n, r in table.items() if r["path"] == vc.loaded.get(n, "")), "")
                     loaded = ns in vc.loaded if ns else False
@@ -209,7 +208,7 @@ def run(*, load_plugins: bool = True, smoke: bool = True) -> DoctorReport:
     for name in REQUIRED_TOOLS:
         t = by_name.get(name) or _tool(name)
         checks.append(DoctorCheck(f"tool:{name}", f"{name}", Status.OK if t.available else Status.FAIL,
-                                  f"{t.version or ''} {t.path or ''}".strip() or t.note, "" if t.available else "install the Arch package 'ffmpeg'"))
+                                  f"{t.version or ''} {t.path or ''}".strip() or t.note, "" if t.available else f"install {osdep.package_ref('ffmpeg')}"))
     for name in OPTIONAL_TOOLS:
         t = by_name.get(name) or _tool(name)
         checks.append(DoctorCheck(f"tool:{name}", f"{name} (optional)", Status.OK if t.available else Status.SKIP,
@@ -283,9 +282,9 @@ def startup_check() -> list[str]:
                 problems.append(f"required plugin {p.name} missing: {path}; reinstall/rebuild qtgmc-6ui")
     sysdir = paths.system_vs_plugin_dir()
     if sysdir is None:
-        problems.append("the vapoursynth Python module is not importable; install the Arch package 'vapoursynth'")
+        problems.append(f"the vapoursynth Python module is not importable; install {osdep.package_ref('vapoursynth')}")
     elif not (sysdir / osdep.shared_lib_name("bestsource")).is_file():
-        problems.append("bestsource plugin missing; install the Arch package 'vapoursynth-plugin-bestsource'")
+        problems.append(f"bestsource plugin missing; install {osdep.package_ref('vapoursynth-plugin-bestsource')}")
     for name in vsenv.PYTHON_PACKAGES:
         try:
             importlib.metadata.version(name)
@@ -293,7 +292,7 @@ def startup_check() -> list[str]:
             problems.append(f"python package {name} missing; reinstall qtgmc-6ui")
     for tool in REQUIRED_TOOLS:
         if not shutil.which(tool):
-            problems.append(f"{tool} not found; install the Arch package 'ffmpeg'")
+            problems.append(f"{tool} not found; install {osdep.package_ref('ffmpeg')}")
     return problems
 
 

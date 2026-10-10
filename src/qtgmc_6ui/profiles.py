@@ -23,7 +23,7 @@ from dataclasses import fields, is_dataclass
 from pathlib import Path
 from typing import Any
 
-from . import encoders, muxmatrix, paths
+from . import encoders, muxmatrix, osdep, paths
 from .errors import ErrorCode, QtgmcError
 from .models import (
     PROFILE_SCHEMA,
@@ -388,7 +388,7 @@ def validate(profile: Profile, *, check_tools: bool = True, check_ffmpeg: bool =
 
     if check_tools:
         for t in missing_tools(profile):
-            problems.append(f"optional tool '{t}' is not installed (pacman -S {t})")
+            problems.append(f"optional tool '{t}' is not installed ({osdep.install_hint(t)})")
 
     if not check_ffmpeg:
         return problems

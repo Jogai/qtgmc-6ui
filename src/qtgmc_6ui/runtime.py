@@ -221,12 +221,12 @@ def _pump_lines(stream: IO[bytes], on_line: Callable[[str], None]) -> None:
 def _tool_missing(cmd: Sequence[str], exc: OSError) -> ComponentError:
     tool = os.path.basename(str(cmd[0]))
     hints = {
-        "ffmpeg": "install ffmpeg (pacman -S ffmpeg)",
-        "ffprobe": "install ffmpeg (pacman -S ffmpeg)",
-        "x264": "install x264 (pacman -S x264) or choose a profile that uses ffmpeg's libx264",
-        "x265": "install x265 (pacman -S x265) or choose a profile that uses ffmpeg's libx265",
-        "kvazaar": "install kvazaar (pacman -S kvazaar) or choose another profile",
-        "sox": "install sox (pacman -S sox) or disable the sox step in the profile",
+        "ffmpeg": f"install ffmpeg ({osdep.install_hint('ffmpeg')})",
+        "ffprobe": f"install ffmpeg ({osdep.install_hint('ffmpeg')})",
+        "x264": f"install x264 ({osdep.install_hint('x264')}) or choose a profile that uses ffmpeg's libx264",
+        "x265": f"install x265 ({osdep.install_hint('x265')}) or choose a profile that uses ffmpeg's libx265",
+        "kvazaar": f"install kvazaar ({osdep.install_hint('kvazaar')}) or choose another profile",
+        "sox": f"install sox ({osdep.install_hint('sox')}) or disable the sox step in the profile",
     }
     return ComponentError(
         ErrorCode.TOOL_MISSING,
@@ -234,11 +234,6 @@ def _tool_missing(cmd: Sequence[str], exc: OSError) -> ComponentError:
         hints.get(tool, f"install {tool} or check PATH"),
         {"command": list(map(str, cmd))},
     )
-
-
-def pdeathsig_preexec(level: StopLevel = StopLevel.FORCE) -> Callable[[], None] | None:
-    """Compatibility name for osdep.die_with_parent_hook()."""
-    return osdep.die_with_parent_hook(level)
 
 
 class StreamingProcess:

@@ -30,8 +30,6 @@ KNOWN_COMPONENTS: dict[str, tuple[str, str, bool]] = {
     "vszip": ("vszip", "com.julek.vszip", False),
 }
 
-# mvutensils builds three variants with one plugin id; only the baseline is loaded.
-_VARIANT_SUFFIX = osdep.variant_suffix_re()
 
 
 def load(path: Path | None = None) -> BuildInfo:
@@ -86,7 +84,7 @@ def scan_plugin_dir(plugin_dir: Path) -> list[PluginInfo]:
     if not plugin_dir.is_dir():
         return out
     for f in sorted(plugin_dir.rglob(osdep.plugin_glob())):
-        if _VARIANT_SUFFIX.search(f.name):
+        if osdep.variant_suffix_re().search(f.name):  # mvutensils variants: only the baseline loads
             continue
         comp = component_for_file(f.name) or osdep.lib_component(f.stem)
         if comp in seen:
