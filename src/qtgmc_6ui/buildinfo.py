@@ -10,11 +10,10 @@ from __future__ import annotations
 import importlib.metadata
 import json
 import os
-import re
 import sys
 from pathlib import Path
 
-from . import paths
+from . import osdep, paths
 from .errors import ComponentError, ErrorCode
 from .models import BuildInfo, PluginInfo, from_dict
 
@@ -32,7 +31,7 @@ KNOWN_COMPONENTS: dict[str, tuple[str, str, bool]] = {
 }
 
 # mvutensils builds three variants with one plugin id; only the baseline is loaded.
-_VARIANT_SUFFIX = re.compile(r"\.(avx2|avx512|zn4|znver4|x86[-_]64[-_]v[34]|native)\.so$")
+_VARIANT_SUFFIX = osdep.variant_suffix_re()
 
 
 def load(path: Path | None = None) -> BuildInfo:
@@ -86,10 +85,10 @@ def scan_plugin_dir(plugin_dir: Path) -> list[PluginInfo]:
     seen: set[str] = set()
     if not plugin_dir.is_dir():
         return out
-    for f in sorted(plugin_dir.rglob("*.so")):
+    for f in sorted(plugin_dir.rglob(osdep.plugin_glob())):
         if _VARIANT_SUFFIX.search(f.name):
             continue
-        comp = component_for_file(f.name) or f.stem.removeprefix("lib")
+        comp = component_for_file(f.name) or osdep.lib_component(f.stem)
         if comp in seen:
             continue
         seen.add(comp)

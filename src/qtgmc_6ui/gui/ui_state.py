@@ -1,4 +1,4 @@
-"""UI state only (window geometry, last folders, panel values) in $XDG_CONFIG_HOME/qtgmc-6ui/gui.ini."""
+"""UI state only (window geometry, last folders, panel values) in paths.config_dir()/gui.ini."""
 
 from __future__ import annotations
 

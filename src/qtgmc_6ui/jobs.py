@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 from typing import IO, Any
 
+from . import osdep
 from .errors import BlockedError, ErrorCode, InputError, OutputError, QtgmcError, UsageError
 from .models import (
     JOB_SCHEMA,
@@ -118,20 +119,6 @@ def temp_master_path(job: JobSpec, pid: int | None = None) -> str:
     return os.path.join(job.output_dir, f".{name}{TEMP_MASTER_TAG}{pid or os.getpid()}{TEMP_MASTER_SUFFIX}")
 
 
-def _pid_alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    st = Path(f"/proc/{pid}/stat")
-    try:
-        return st.read_text().split(") ")[-1].split()[0] != "Z"
-    except OSError:
-        return True
-
-
 def remove_stale_temp_masters(output_dir: str) -> list[str]:
     """Delete temporary masters (and their .partial files) left by crashed --no-master runs in
     ``output_dir``: those whose owning pid no longer runs.  Returns the removed paths."""
@@ -148,7 +135,7 @@ def remove_stale_temp_masters(output_dir: str) -> list[str]:
         if not base.endswith(TEMP_MASTER_SUFFIX):
             continue
         pid_s = base[: -len(TEMP_MASTER_SUFFIX)].rsplit(".", 1)[-1]
-        if not pid_s.isdigit() or int(pid_s) == os.getpid() or _pid_alive(int(pid_s)):
+        if not pid_s.isdigit() or int(pid_s) == os.getpid() or osdep.process_alive(int(pid_s)):
             continue
         p = os.path.join(output_dir, n)
         try:
@@ -326,7 +313,7 @@ def _writable_dir(d: str) -> bool:
         if p.parent == p:
             return False
         p = p.parent
-    return p.is_dir() and os.access(p, os.W_OK | os.X_OK)
+    return osdep.dir_writable(p)
 
 
 def job_problems(job: JobSpec, outputs: list[str] | None = None) -> list[QtgmcError]:

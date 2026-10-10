@@ -56,16 +56,10 @@ _mem: dict[str, Any] = {}  # per-process memo: version, muxers, encoders, detail
 
 # --------------------------------------------------------------------------- subprocess helpers
 def subprocess_env() -> dict[str, str]:
-    """runtime.subprocess_env() once WP-D lands; the same defaults meanwhile."""
-    try:
-        from . import runtime
+    """The child environment (osdep.subprocess_env via runtime)."""
+    from . import runtime
 
-        return runtime.subprocess_env()
-    except NotImplementedError:
-        env = dict(os.environ)
-        env.setdefault("LC_CTYPE", "C.UTF-8")
-        env["AV_LOG_FORCE_NOCOLOR"] = "1"
-        return env
+    return runtime.subprocess_env()
 
 
 def child_kwargs() -> dict[str, Any]:

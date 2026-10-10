@@ -17,14 +17,15 @@ from typing import Any
 
 from PySide6.QtCore import QByteArray, QObject, QProcess, QProcessEnvironment, QTimer, Signal
 
+from .. import osdep, runtime
 from ..events import Event
 
 ENV_BACKEND = "QTGMC6UI_GUI_BACKEND"
 
 # The CLI finishes the in-flight frame(s) and removes partial output itself, which can take
 # several seconds per frame at slow presets on HD.  Only escalate when it is clearly stuck.
-CANCEL_TERMINATE_MS = 20_000
-CANCEL_KILL_MS = 45_000
+CANCEL_TERMINATE_MS = int(runtime.FRONTEND_TERMINATE_AFTER_S * 1000)
+CANCEL_KILL_MS = int(runtime.FRONTEND_KILL_AFTER_S * 1000)
 
 
 def backend_command() -> tuple[str, list[str]]:
@@ -40,22 +41,18 @@ def backend_display() -> str:
     return shlex.join([prog, *args])
 
 
-def _is_utf8_locale(value: str) -> bool:
-    v = value.lower().replace("-", "")
-    return "utf8" in v
-
-
 def process_environment() -> QProcessEnvironment:
     """Child environment: force UTF-8 so non-ASCII paths survive LANG=C."""
     env = QProcessEnvironment.systemEnvironment()
     env.insert("PYTHONUTF8", "1")
     env.insert("PYTHONIOENCODING", "utf-8")
     env.remove("PYTHONCOERCECLOCALE")
-    effective = env.value("LC_ALL") or env.value("LC_CTYPE") or env.value("LANG")
-    if not _is_utf8_locale(effective):
-        if env.contains("LC_ALL"):
-            env.remove("LC_ALL")
-        env.insert("LC_CTYPE", "C.UTF-8")
+    remove, put = osdep.utf8_locale_edits(lambda k: env.value(k))
+    for k in remove:
+        if env.contains(k):
+            env.remove(k)
+    for k, v in put.items():
+        env.insert(k, v)
     return env
 
 

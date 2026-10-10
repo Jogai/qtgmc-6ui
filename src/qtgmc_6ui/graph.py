@@ -15,7 +15,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from . import buildinfo, paths, qtgmc
+from . import buildinfo, osdep, paths, qtgmc
 from .errors import BlockedError, ErrorCode, InputError
 from .models import AnalysisResult, FieldOrder, FieldOrderChoice, MasterSettings, Preset, RateMode
 from .vsenv import VSCore
@@ -88,23 +88,14 @@ def geometry_problem(fmt: Any, width: int, height: int) -> str:
 
 def encodable_path(path: str) -> str:
     """VapourSynth needs a UTF-8 path; a name that is not valid UTF-8 (surrogate-escaped) is
-    reached through an ASCII-named symlink in the cache dir."""
+    reached through an ASCII-named alias in the cache dir (osdep.ascii_alias)."""
     try:
         path.encode("utf-8")
         return path
     except UnicodeEncodeError:
         pass
-    import hashlib
-
-    links = paths.cache_dir() / "links"
-    links.mkdir(parents=True, exist_ok=True)
-    raw = os.fsencode(os.path.abspath(path))
-    ext = os.path.splitext(path)[1].encode("utf-8", "replace").decode("ascii", "ignore")
-    link = links / (hashlib.sha1(raw).hexdigest() + ext)
     try:
-        if link.is_symlink() or link.exists():
-            link.unlink()
-        os.symlink(raw, link)
+        return osdep.ascii_alias(path, paths.cache_dir() / "links")
     except OSError as e:
         raise InputError(
             ErrorCode.INPUT_UNREADABLE,
@@ -112,7 +103,6 @@ def encodable_path(path: str) -> str:
             "rename the file to a UTF-8 name",
             {"path": path},
         ) from e
-    return str(link)
 
 
 def resolve_field_order(analysis: AnalysisResult, settings: MasterSettings) -> FieldOrder:
@@ -283,7 +273,7 @@ def script_text(analysis: AnalysisResult, settings: MasterSettings) -> str:
         "core = vs.core",
         "# plugins are loaded explicitly (the app disables autoloading)",
     ]
-    bs = (sysdir / "libbestsource.so") if sysdir else Path("/usr/lib/python3.14/site-packages/vapoursynth/plugins/libbestsource.so")
+    bs = (sysdir or osdep.fallback_vs_plugin_dir()) / osdep.shared_lib_name("bestsource")
     lines.append(f"core.std.LoadPlugin({str(bs)!r})")
     for p in (bi.plugins if bi else []):
         if p.origin == "repo":

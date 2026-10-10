@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from fractions import Fraction
 from typing import Any
 
+from . import osdep
 from .errors import ComponentError, ErrorCode, InputError
 from .models import AudioProbe, Colorimetry, ProbeInfo, VideoProbe
 
@@ -25,17 +26,8 @@ STDERR_TAIL_LINES = 40
 
 # --------------------------------------------------------------------------- subprocess helper
 def tool_env() -> dict[str, str]:
-    """os.environ plus a UTF-8 ctype for children and colour-free ffmpeg logs."""
-    env = dict(os.environ)
-    env.setdefault("PYTHONUTF8", "1")
-    ctype = env.get("LC_ALL") or env.get("LC_CTYPE") or env.get("LANG") or ""
-    if "utf-8" not in ctype.lower().replace("utf8", "utf-8"):
-        env["LC_CTYPE"] = "C.UTF-8"
-        if "LC_ALL" in env:
-            # LC_ALL=C would override LC_CTYPE; narrow it to the same UTF-8 ctype
-            env["LC_ALL"] = "C.UTF-8"
-    env["AV_LOG_FORCE_NOCOLOR"] = "1"
-    return env
+    """os.environ plus a UTF-8 ctype for children and colour-free ffmpeg logs (osdep.tool_env)."""
+    return osdep.tool_env()
 
 
 def _argv_bytes(cmd: Sequence[str]) -> list[bytes]:

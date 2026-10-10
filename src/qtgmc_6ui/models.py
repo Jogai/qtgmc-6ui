@@ -16,6 +16,8 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any, TypeVar
 
+from . import osdep
+
 T = TypeVar("T")
 
 ANALYSIS_SCHEMA = 1
@@ -530,7 +532,7 @@ class BuildInfo(Serializable):
     march: str = "x86-64"
     python_version: str = ""  # "3.14.7"
     python_minor: list[int] = field(default_factory=list)  # [3, 14]
-    python_executable: str = "/usr/bin/python3.14"
+    python_executable: str = field(default_factory=osdep.default_python_executable)
     vapoursynth_pkgver: str = ""  # "80-1"
     vapoursynth_core: int = 0  # 80
     vapoursynth_api: list[int] = field(default_factory=list)  # [4, 3]

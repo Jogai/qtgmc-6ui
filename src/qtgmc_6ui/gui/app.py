@@ -6,15 +6,12 @@ import os
 import sys
 from collections.abc import Sequence
 
-from .. import __version__, paths
+from .. import __version__, osdep, paths
 
 
 def _force_utf8_children() -> None:
     """Child processes inherit this environment: keep non-ASCII paths working under LANG=C."""
-    os.environ.setdefault("PYTHONUTF8", "1")
-    loc = os.environ.get("LC_ALL") or os.environ.get("LC_CTYPE") or os.environ.get("LANG") or ""
-    if "utf" not in loc.lower().replace("-", ""):
-        os.environ["LC_CTYPE"] = "C.UTF-8"
+    osdep.force_utf8_environ(os.environ)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

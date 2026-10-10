@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import buildinfo, paths
+from . import buildinfo, osdep, paths
 from .errors import ComponentError, ErrorCode
 from .models import BuildInfo, PluginInfo
 
@@ -36,7 +36,7 @@ DEFAULT_CACHE_MB_SD = 2048
 DEFAULT_CACHE_MB_HD = 6144
 
 REPO_PLUGINS: tuple[PluginInfo, ...] = (
-    PluginInfo("bestsource", "bs", "com.vapoursynth.bestsource", "R22", "libbestsource.so", True, "repo"),
+    PluginInfo("bestsource", "bs", "com.vapoursynth.bestsource", "R22", osdep.shared_lib_name("bestsource"), True, "repo"),
 )
 
 PYTHON_PACKAGES: tuple[str, ...] = ("vsjetpack", "jetpytools")

@@ -26,7 +26,7 @@ import sys
 import time
 from typing import Any
 
-from . import __version__, buildinfo, paths, qtgmc, vsenv
+from . import __version__, buildinfo, osdep, paths, qtgmc, vsenv
 from .errors import ComponentError, ErrorCode
 from .models import (
     BuildInfo,
@@ -39,9 +39,7 @@ from .models import (
     ToolInfo,
 )
 
-ENV_KEYS = ("LANG", "LC_ALL", "LC_CTYPE", "PYTHONUTF8", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "QT_QPA_PLATFORM",
-            "VAPOURSYNTH_EXTRA_PLUGIN_PATH", "QTGMC6UI_PLUGIN_DIR", "QTGMC6UI_BUILD_INFO", "QTGMC6UI_CONFIG_DIR",
-            "QTGMC6UI_CACHE_DIR")
+ENV_KEYS = osdep.diagnostic_env_keys()
 REQUIRED_TOOLS = ("ffmpeg", "ffprobe")
 OPTIONAL_TOOLS = ("x264", "x265", "kvazaar", "sox")
 _VERSION_ARGS = {"ffmpeg": ["-version"], "ffprobe": ["-version"], "x264": ["--version"], "x265": ["--version"],
@@ -286,7 +284,7 @@ def startup_check() -> list[str]:
     sysdir = paths.system_vs_plugin_dir()
     if sysdir is None:
         problems.append("the vapoursynth Python module is not importable; install the Arch package 'vapoursynth'")
-    elif not (sysdir / "libbestsource.so").is_file():
+    elif not (sysdir / osdep.shared_lib_name("bestsource")).is_file():
         problems.append("bestsource plugin missing; install the Arch package 'vapoursynth-plugin-bestsource'")
     for name in vsenv.PYTHON_PACKAGES:
         try:
