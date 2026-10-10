@@ -1,0 +1,128 @@
+name: AUR release
+
+# Tag vX.Y.Z (must equal __version__): build + smoke-test the package on Arch, then push
+# PKGBUILD and .SRCINFO to the AUR. Setup and details: packaging/aur/PKGBUILD.md.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to test (and publish when enabled below)
+        required: true
+      publish:
+        description: Publish to the AUR after the gate passes
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aur-release
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+
+jobs:
+  test-build:
+    name: Test build (Arch)
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    timeout-minutes: 120
+    steps:
+      - name: Prepare Arch
+        run: |
+          # pacman's download sandbox needs kernel features that container runtimes block
+          sed -i '/^\[options\]/a DisableSandboxFilesystem\nDisableSandboxSyscalls' /etc/pacman.conf
+          sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
+          pacman -Syu --noconfirm --noprogressbar git sudo python namcap
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.TAG }}
+
+      - name: Check the tag against the package version
+        id: version
+        run: |
+          ver=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/qtgmc_6ui/__init__.py)
+          [ "${TAG#v}" = "$ver" ] || { echo "::error::tag $TAG does not match __version__ $ver"; exit 1; }
+          echo "ver=$ver" >> "$GITHUB_OUTPUT"
+          chown -R builder: "$GITHUB_WORKSPACE"
+
+      - name: Pin the release tarball checksum, refresh .SRCINFO
+        run: |
+          sudo -u builder -H bash -euo pipefail -c '
+            cd "$GITHUB_WORKSPACE"
+            python3 -I packaging/sync-pkgbuild.py --project-sha256 auto
+            python3 -I packaging/sync-pkgbuild.py --check
+          '
+
+      - name: Build
+        run: |
+          sudo -u builder -H bash -euo pipefail -c '
+            mkdir ~/build
+            cp "$GITHUB_WORKSPACE"/packaging/aur/PKGBUILD ~/build/
+            cd ~/build
+            makepkg -sf --noconfirm --noprogressbar
+          '
+
+      - name: namcap
+        run: |
+          cd /home/builder/build
+          out=$(namcap -e pydepends PKGBUILD ./*.pkg.tar.* || true)
+          echo "$out"
+          # warnings are known and listed in PKGBUILD.md; errors fail the gate
+          ! grep -q ' E: ' <<<"$out"
+
+      - name: Install and smoke test
+        run: |
+          pacman -U --noconfirm --noprogressbar /home/builder/build/*.pkg.tar.*
+          sudo -u builder -H bash "$GITHUB_WORKSPACE/packaging/ci-smoke.sh"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aur-files
+          path: |
+            packaging/aur/PKGBUILD
+            packaging/aur/.SRCINFO
+          include-hidden-files: true
+          if-no-files-found: error
+
+    outputs:
+      ver: ${{ steps.version.outputs.ver }}
+
+  publish:
+    name: Publish to the AUR
+    needs: test-build
+    if: github.event_name == 'push' || inputs.publish
+    runs-on: ubuntu-latest
+    environment: aur
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aur-files
+          path: files
+
+      - name: Push to the AUR
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          VER: ${{ needs.test-build.outputs.ver }}
+        run: |
+          install -d -m 700 ~/.ssh
+          (umask 077; printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur)
+          ssh-keyscan -t ed25519,rsa aur.archlinux.org >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/aur -o IdentitiesOnly=yes"
+          git clone ssh://aur@aur.archlinux.org/qtgmc-6ui.git aur   # an empty clone on the first push is fine
+          cd aur
+          git checkout -B master                                   # the AUR only accepts master
+          cp ../files/PKGBUILD ../files/.SRCINFO .
+          git config user.name jogai
+          git config user.email wouter@jogai.nl
+          git add PKGBUILD .SRCINFO
+          if git diff --cached --quiet; then echo "AUR already up to date"; exit 0; fi
+          git commit -m "Update to $VER"
+          git push origin master
