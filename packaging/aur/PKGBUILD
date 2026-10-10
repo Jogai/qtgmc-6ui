@@ -49,8 +49,6 @@ makedepends=(
   "${_plugin_makedepends[@]}"
 )
 optdepends=(
-  'x264: standalone H.264 encoder for viewing copies'
-  'x265: standalone HEVC encoder (incl. high bit depth) for viewing copies'
   'kvazaar: HEVC encoder for viewing copies (not available through FFmpeg)'
   'sox: high-quality audio resampling/dithering for viewing copies'
 )

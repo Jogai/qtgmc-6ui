@@ -37,7 +37,7 @@ Bundled Python packages (pure-Python wheels from PyPI, hashes from `uv.lock`, in
 
 Why bundle Python packages: Arch's guidelines do not forbid a private venv, and nothing in the repos provides vsjetpack/jetpytools. The AUR route would break the no-AUR rule and brings the rebuild-on-every-Python-bump problem described above. The guidelines discourage prebuilt `.whl` as sources; here they are pure-Python, hash-pinned and fetched through `source=()` so the build is offline and reproducible, and the app's own wheel is built from source (`python -m build`).
 
-Optional (`optdepends`, official repos): `x264`, `x265`, `kvazaar`, `sox`.
+Optional (`optdepends`, official repos): `kvazaar`, `sox`. `x264` and `x265` are not listed because Arch's `ffmpeg` depends on both packages.
 
 ## Upstream projects and what they are used for
 
@@ -214,12 +214,14 @@ Single rate, the `faster`, `slower` and `placebo` presets, 4:1:1 and 4:2:2 10-bi
 | jetpytools 3.1.2 | Jaded-Encoding-Thaumaturgy/jetpytools, MIT | helper library that vsjetpack is built on |
 | dfttest2 11.0.0 | see dfttest2 above | `--denoise` only |
 
-### Optional tools (`optdepends`)
+### Standalone encoders and sox
+
+`kvazaar` and `sox` are `optdepends`. `x264` and `x265` come with `ffmpeg` and are detected at runtime like the others.
 
 | tool | upstream, licence | used by | without it |
 |---|---|---|---|
-| x264 | videolan.org, GPL-2.0-only | profile `mp4-x264cli-aac` (and user profiles with the x264 backend) | profile hidden. Arch's ffmpeg depends on the `x264` package (libx264), so the CLI is always installed |
-| x265 | x265.org, GPL-2.0-or-later | profile `mkv-x265cli10-opus` | as x264: always installed as an ffmpeg dependency |
+| x264 | videolan.org, GPL-2.0-only | profile `mp4-x264cli-aac` (and user profiles with the x264 backend) | profile hidden if the CLI was removed. Arch's ffmpeg depends on the `x264` package (libx264), so the CLI is normally installed |
+| x265 | x265.org, GPL-2.0-or-later | profile `mkv-x265cli10-opus` | as x264: normally installed as an ffmpeg dependency |
 | kvazaar | ultravideo/kvazaar, BSD-3-Clause | profile `mkv-kvazaar-opus`; Arch's ffmpeg has no libkvazaar | profile hidden |
 | sox | `sox` package (the sox_ng fork, codeberg.org/sox_ng), GPL-2.0-only | profile `mp4-h264-aac-sox`: resampling to 48 kHz and shaped dither before the audio encoder | profile hidden |
 

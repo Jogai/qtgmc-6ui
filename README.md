@@ -95,14 +95,14 @@ Viewing copies are always encoded from the master, never from the original. A jo
 | `mp4-h264-aac` | mp4 | libx264 | aac |
 | `mp4-h264-aac-sox` | mp4 | libx264 | aac (sox audio steps) |
 | `mkv-h264-flac` | mkv | libx264 | flac |
-| `mkv-hevc10-opus` | mkv | libx265 10-bit | opus |
+| `mkv-hevc10-opus` | mkv | libx265 10-bit | libopus |
 | `mp4-x264cli-aac` | mp4 | x264 CLI | aac |
-| `mkv-x265cli10-opus` | mkv | x265 CLI 10-bit | opus |
-| `mkv-kvazaar-opus` | mkv | kvazaar CLI | opus |
+| `mkv-x265cli10-opus` | mkv | x265 CLI 10-bit | libopus |
+| `mkv-kvazaar-opus` | mkv | kvazaar CLI | libopus |
 
 Profiles that need an optional tool are hidden when the tool is missing (`profiles list --all` shows them). User profiles are TOML files in `~/.config/qtgmc-6ui/profiles/` and can be shared and versioned. Which container/codec pairs are selectable is decided by a probe-mux on the installed ffmpeg (cached per ffmpeg version), not by a static table; the reason for a greyed-out option is shown. Options per profile: rate control, preset, tune, profile/level, pixel format, audio bitrate/rate, scaling (keep anamorphic SAR, or square pixels, or custom), frame rate (keep double or single), extra arguments. x265 and kvazaar output is raw HEVC; a small built-in step gives it real timestamps in a temporary MPEG-TS before the final mux.
 
-Optional tools (pacman `optdepends`, detected at runtime): `x264`, `x265`, `kvazaar` (HEVC; ffmpeg on Arch has no libkvazaar), `sox` (audio resampling/dithering steps, not a codec).
+The standalone `x264` and `x265` encoders are installed together with Arch's `ffmpeg`, which depends on them. Optional tools (pacman `optdepends`, detected at runtime): `kvazaar` (HEVC; ffmpeg on Arch has no libkvazaar) and `sox` (audio resampling/dithering steps, not a codec).
 
 ## doctor and the ABI story
 
