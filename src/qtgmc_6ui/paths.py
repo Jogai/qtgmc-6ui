@@ -4,10 +4,12 @@ with an environment variable so the package can run from the working tree
 
 QTGMC6UI_PLUGIN_DIR   dir with bundled native plugins   (default <install root>/plugins)
 QTGMC6UI_BUILD_INFO   build-info.json path              (default <install root>/build-info.json)
-QTGMC6UI_CONFIG_DIR   user config dir                   (default <OS config base>/qtgmc-6ui)
-QTGMC6UI_CACHE_DIR    user cache dir                    (default <OS cache base>/qtgmc-6ui)
+QTGMC6UI_CONFIG_DIR   user config dir                   (default <config base>/qtgmc-6ui)
+QTGMC6UI_CACHE_DIR    user cache dir                    (default <cache base>/qtgmc-6ui)
 
-The OS defaults (install root, config/cache bases) come from osdep.
+The OS defaults come from osdep.  Linux: install root /usr/lib/qtgmc-6ui, config base
+$XDG_CONFIG_HOME (~/.config), cache base $XDG_CACHE_HOME (~/.cache).  Windows (experimental):
+%ProgramFiles%\\qtgmc-6ui, %APPDATA%, %LOCALAPPDATA%.
 """
 
 from __future__ import annotations
