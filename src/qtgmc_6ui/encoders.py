@@ -70,12 +70,10 @@ def subprocess_env() -> dict[str, str]:
 
 def child_kwargs() -> dict[str, Any]:
     """Popen keyword arguments for every child: env, own session, dies with its parent
-    (runtime.pdeathsig_preexec) so a killed CLI leaves no orphan."""
-    import signal
+    (osdep.popen_kwargs) so a killed CLI leaves no orphan."""
+    from . import osdep
 
-    from . import runtime
-
-    return {"env": subprocess_env(), "start_new_session": True, "preexec_fn": runtime.pdeathsig_preexec(signal.SIGKILL)}
+    return {"env": subprocess_env(), **osdep.popen_kwargs()}
 
 
 def _capture(cmd: list[str], timeout: float = _CAPTURE_TIMEOUT_S) -> tuple[int, str, str]:

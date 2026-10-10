@@ -16,7 +16,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import signal
 import sys
 import threading
 import traceback
@@ -49,7 +48,7 @@ from .models import (
 
 T = TypeVar("T")
 
-CANCEL_GRACE_S = 15.0  # worker cleanup budget after cancel (pipeline: 5 s SIGTERM->SIGKILL + rm)
+CANCEL_GRACE_S = runtime.CANCEL_GRACE_S  # worker cleanup budget after cancel (stage stop + rm)
 
 
 # --------------------------------------------------------------------------- helpers
@@ -236,7 +235,7 @@ def run_cancellable(token: runtime.CancelToken, fn: Callable[[], T], grace_s: fl
                 em.log("app", f"cancelling ({token.reason}): stopping and removing partial output (up to {g:.0f} s)", "warning")
             th.join(g)
             if th.is_alive():
-                runtime.kill_all_children(signal.SIGKILL)
+                runtime.kill_all_children()
                 th.join(2.0)
                 raise CancelledError()
             break

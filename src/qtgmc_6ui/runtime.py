@@ -2,9 +2,9 @@
 
 Used for ffprobe/ffmpeg (analysis, master, views), x264/x265/kvazaar, sox.
 
-Children run in their own process group (``start_new_session``) so a terminal Ctrl-C reaches
-only this process; cancel then terminates each child group in order: SIGTERM, SIGKILL after
-``kill_grace_s``.  Long-running steps either pass a CancelToken explicitly or rely on the
+Children run in their own process group (osdep.popen_kwargs) so a terminal Ctrl-C reaches
+only this process; cancel then stops each child tree in order: GRACEFUL, FORCE after
+``kill_grace_s`` (SIGTERM/SIGKILL on POSIX; all OS specifics live in osdep).  Long-running steps either pass a CancelToken explicitly or rely on the
 process-wide default token (``set_default_cancel``), which the CLI installs for every command.
 """
 
@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import os
 import re
-import signal
 import subprocess
 import sys
 import threading
@@ -22,10 +21,18 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import IO, Any
 
+from . import osdep
 from .errors import ComponentError, ErrorCode
+from .osdep import StopLevel
 
 TAIL_LINES = 50
 _POLL_S = 0.05
+
+# Cancel timings, the single source for the CLI and the GUI's QProcess escalation.
+KILL_GRACE_S = 5.0  # a stage's encoder: GRACEFUL stop, FORCE after this
+CANCEL_GRACE_S = 15.0  # the CLI waits this long for a stage to clean up after a cancel
+FRONTEND_TERMINATE_AFTER_S = 20.0  # a front end sends its terminate only after this
+FRONTEND_KILL_AFTER_S = 45.0  # ... and kills only after this
 
 
 class CancelToken:
@@ -79,7 +86,7 @@ def _unregister(p: subprocess.Popen[Any]) -> None:
 def track(p: subprocess.Popen[Any]) -> None:
     """Register a child started outside this module (own Popen) so cancel timeouts and the
     hard-exit path kill it too; pair with untrack() after wait().  Start such children with
-    ``start_new_session=True, preexec_fn=pdeathsig_preexec(signal.SIGKILL)``."""
+    ``**osdep.popen_kwargs()``."""
     _register(p)
 
 
@@ -87,34 +94,17 @@ def untrack(p: subprocess.Popen[Any]) -> None:
     _unregister(p)
 
 
-def _signal_group(p: subprocess.Popen[Any], sig: int) -> None:
-    if p.poll() is not None:
-        return
-    try:
-        os.killpg(p.pid, sig)  # pid == pgid because of start_new_session
-    except (ProcessLookupError, PermissionError):
-        try:
-            p.send_signal(sig)
-        except ProcessLookupError:
-            pass
-
-
-def kill_all_children(sig: int = signal.SIGKILL) -> None:
-    """Signal every child started through this module that is still running."""
+def kill_all_children(level: StopLevel = StopLevel.FORCE) -> None:
+    """Stop (``level``) every tracked child tree that is still running."""
     with _live_lock:
         procs = list(_live)
     for p in procs:
-        _signal_group(p, sig)
+        osdep.signal_tree(p, level)
 
 
-def terminate(p: subprocess.Popen[Any], grace_s: float = 5.0) -> int:
-    """SIGTERM the child's process group, SIGKILL after ``grace_s``; returns the exit status."""
-    _signal_group(p, signal.SIGTERM)
-    try:
-        return p.wait(grace_s)
-    except subprocess.TimeoutExpired:
-        _signal_group(p, signal.SIGKILL)
-        return p.wait()
+def terminate(p: subprocess.Popen[Any], grace_s: float = KILL_GRACE_S) -> int:
+    """GRACEFUL stop of the child's tree, FORCE after ``grace_s``; returns the exit status."""
+    return osdep.stop_tree(p, grace_s)
 
 
 # --------------------------------------------------------------------------- signals / stdin
@@ -137,7 +127,7 @@ def remove_hard_exit(fn: Callable[[], None]) -> None:
 
 def hard_exit(code: int = 130) -> None:
     """Kill every child, run the hard-exit hooks (partial-output cleanup, final events), exit."""
-    kill_all_children(signal.SIGKILL)
+    kill_all_children(StopLevel.FORCE)
     for fn in list(_hard_exit_hooks):
         try:
             fn()
@@ -155,19 +145,15 @@ def install_signal_handlers(token: CancelToken) -> None:
     killed and the hard-exit hooks remove the partial outputs first (hard_exit).
 
     No-op outside the main thread (signal handlers can only be set there)."""
-    if threading.current_thread() is not threading.main_thread():
-        return
 
-    def handler(signum: int, _frame: Any) -> None:
-        name = signal.Signals(signum).name
+    def on_signal(name: str, interactive: bool) -> None:
         if token.cancelled:
-            if signum == signal.SIGINT and token.reason == "SIGINT":
+            if interactive and token.reason == name:
                 hard_exit(130)
             return
         token.cancel(name)
 
-    signal.signal(signal.SIGINT, handler)
-    signal.signal(signal.SIGTERM, handler)
+    osdep.install_termination_handlers(on_signal)
 
 
 def watch_stdin_for_cancel(token: CancelToken, stream: IO[str] | None = None) -> threading.Thread:
@@ -248,41 +234,9 @@ def _tool_missing(cmd: Sequence[str], exc: OSError) -> ComponentError:
     )
 
 
-_PR_SET_PDEATHSIG = 1
-_prctl: Any = None
-
-
-def _get_prctl() -> Any:
-    """libc prctl, resolved in the parent: the forked child must not import or dlopen."""
-    global _prctl
-    if _prctl is None:
-        try:
-            import ctypes
-
-            _prctl = ctypes.CDLL(None, use_errno=True).prctl
-        except (OSError, AttributeError):
-            _prctl = False
-    return _prctl
-
-
-def pdeathsig_preexec(sig: int) -> Callable[[], None] | None:
-    """preexec_fn that makes the child die with ``sig`` when its parent exits (Linux
-    PR_SET_PDEATHSIG), so a killed CLI never leaves an orphan encoder behind.
-
-    Caveat (kernel semantics): the signal fires when the *thread* that started the child
-    exits, so start children from a thread that outlives them (callers wait on them)."""
-    prctl = _get_prctl()
-    if not prctl:
-        return None
-    ppid = os.getpid()
-    sig = int(sig)
-
-    def preexec() -> None:
-        prctl(_PR_SET_PDEATHSIG, sig, 0, 0, 0)
-        if os.getppid() != ppid:  # parent already gone before prctl took effect
-            os._exit(1)
-
-    return preexec
+def pdeathsig_preexec(level: StopLevel = StopLevel.FORCE) -> Callable[[], None] | None:
+    """Compatibility name for osdep.die_with_parent_hook()."""
+    return osdep.die_with_parent_hook(level)
 
 
 class StreamingProcess:
@@ -290,8 +244,7 @@ class StreamingProcess:
 
     For callers that must feed or read the pipes themselves (pipeline: y4m into ffmpeg stdin;
     viewcopy: ffmpeg | x264).  ``run_streaming`` is the blocking convenience on top of it.
-    ``pdeathsig``: signal the child receives when this process dies (default SIGKILL; None or 0
-    disables it; see pdeathsig_preexec)."""
+    ``die_with_parent``: the child is killed when this process dies (osdep.popen_kwargs)."""
 
     def __init__(
         self,
@@ -305,7 +258,7 @@ class StreamingProcess:
         cwd: str | None = None,
         capture_stdout: bool = False,
         keep_stderr: bool = False,
-        pdeathsig: int | None = signal.SIGKILL,
+        die_with_parent: bool = True,
     ) -> None:
         self.cmd = [str(c) for c in cmd]
         self.tail: deque[str] = deque(maxlen=TAIL_LINES)
@@ -328,8 +281,7 @@ class StreamingProcess:
                 stderr=subprocess.PIPE,
                 env=env if env is not None else subprocess_env(),
                 cwd=cwd,
-                start_new_session=True,
-                preexec_fn=pdeathsig_preexec(pdeathsig) if pdeathsig else None,
+                **osdep.popen_kwargs(die_with_parent),
             )
         except (FileNotFoundError, PermissionError, NotADirectoryError) as e:
             raise _tool_missing(cmd, e) from None
@@ -369,10 +321,10 @@ class StreamingProcess:
     def poll(self) -> int | None:
         return self.proc.poll()
 
-    def terminate(self, grace_s: float = 5.0) -> int:
+    def terminate(self, grace_s: float = KILL_GRACE_S) -> int:
         return terminate(self.proc, grace_s)
 
-    def wait(self, cancel: CancelToken | None = None, kill_grace_s: float = 5.0, timeout: float | None = None) -> RunResult:
+    def wait(self, cancel: CancelToken | None = None, kill_grace_s: float = KILL_GRACE_S, timeout: float | None = None) -> RunResult:
         """Wait for exit while polling ``cancel``; drains the pump threads; never raises."""
         cancelled = timed_out = False
         deadline = None if timeout is None else time.monotonic() + timeout
@@ -425,15 +377,15 @@ def run_streaming(
     cancel: CancelToken | None = None,
     env: dict[str, str] | None = None,
     cwd: str | None = None,
-    kill_grace_s: float = 5.0,
+    kill_grace_s: float = KILL_GRACE_S,
     capture_stdout: bool = False,
     stdout: IO[bytes] | int | None = None,
     keep_stderr: bool = False,
     timeout: float | None = None,
-    pdeathsig: int | None = signal.SIGKILL,
+    die_with_parent: bool = True,
 ) -> RunResult:
     """Popen, stream stderr split on both \\r and \\n (ffmpeg progress uses \\r), poll ``cancel``
-    (SIGTERM, then SIGKILL after ``kill_grace_s``).  Never raises for non-zero exit; raises
+    (GRACEFUL stop, then FORCE after ``kill_grace_s``).  Never raises for non-zero exit; raises
     ComponentError(TOOL_MISSING) when the executable is absent.
 
     ``cancel`` defaults to the process-wide token (set_default_cancel).  ``stdout`` may be a
@@ -448,7 +400,7 @@ def run_streaming(
         cwd=cwd,
         capture_stdout=capture_stdout,
         keep_stderr=keep_stderr,
-        pdeathsig=pdeathsig,
+        die_with_parent=die_with_parent,
     )
     tok = cancel if cancel is not None else _default_cancel
     return sp.wait(tok, kill_grace_s, timeout)
@@ -465,8 +417,7 @@ def run_capture(cmd: Sequence[str], *, timeout: float | None = None, env: dict[s
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=env if env is not None else subprocess_env(),
-            start_new_session=True,
-            preexec_fn=pdeathsig_preexec(signal.SIGKILL),
+            **osdep.popen_kwargs(),
         )
     except (FileNotFoundError, PermissionError, NotADirectoryError) as e:
         raise _tool_missing(cmd, e) from None
@@ -489,7 +440,7 @@ def run_capture(cmd: Sequence[str], *, timeout: float | None = None, env: dict[s
                     timed_out = True
                 else:
                     continue
-                _signal_group(p, signal.SIGKILL)
+                osdep.signal_tree(p, StopLevel.FORCE)
                 o, e = p.communicate()
                 out_b += o or b""
                 err_b += e or b""
@@ -511,22 +462,9 @@ def run_capture(cmd: Sequence[str], *, timeout: float | None = None, env: dict[s
     )
 
 
-def _is_utf8_locale(value: str) -> bool:
-    v = value.lower().replace("-", "")
-    return "utf8" in v
-
-
 def subprocess_env() -> dict[str, str]:
-    """os.environ + LC_CTYPE=C.UTF-8, PYTHONUTF8=1 (non-ASCII paths under LANG=C), AV_LOG_FORCE_NOCOLOR=1."""
-    env = dict(os.environ)
-    lc_all = env.get("LC_ALL", "")
-    if lc_all and not _is_utf8_locale(lc_all):
-        env["LC_ALL"] = "C.UTF-8"
-    if not _is_utf8_locale(env.get("LC_CTYPE", "") or env.get("LANG", "")):
-        env["LC_CTYPE"] = "C.UTF-8"
-    env["PYTHONUTF8"] = "1"
-    env["AV_LOG_FORCE_NOCOLOR"] = "1"
-    return env
+    """Child environment with a UTF-8 locale (osdep.subprocess_env)."""
+    return osdep.subprocess_env()
 
 
 def remove_partial(paths: Sequence[str]) -> list[str]:

@@ -22,7 +22,6 @@ SD) and needs no bitstream parsing of our own.
 from __future__ import annotations
 
 import os
-import signal
 import struct
 import subprocess
 import threading
@@ -31,7 +30,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from fractions import Fraction
 
-from . import runtime
+from . import osdep, runtime
 from .errors import CancelledError, EncodeError, ErrorCode
 from .runtime import CancelToken
 
@@ -68,16 +67,15 @@ def _env() -> dict[str, str]:
 
 
 def _run_csv(cmd: list[str], *, cancel: CancelToken | None, on_line: Callable[[str], None] | None = None) -> tuple[int, list[str], str]:
-    """Run ffprobe with ``-of compact``; stream stdout lines, poll ``cancel`` every 0.1 s (SIGTERM,
-    then SIGKILL).  Returns (rc, lines, stderr tail)."""
+    """Run ffprobe with ``-of compact``; stream stdout lines, poll ``cancel`` every 0.1 s (GRACEFUL
+    stop, then FORCE).  Returns (rc, lines, stderr tail)."""
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         stdin=subprocess.DEVNULL,
         env=_env(),
-        start_new_session=True,
-        preexec_fn=runtime.pdeathsig_preexec(signal.SIGKILL),
+        **osdep.popen_kwargs(),
     )
     runtime.track(proc)
     lines: list[str] = []
@@ -103,14 +101,7 @@ def _run_csv(cmd: list[str], *, cancel: CancelToken | None, on_line: Callable[[s
     while proc.poll() is None:
         if cancel is not None and cancel.cancelled:
             cancelled = True
-            try:
-                os.killpg(proc.pid, signal.SIGTERM)
-            except OSError:
-                proc.terminate()
-            try:
-                proc.wait(5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
+            osdep.stop_tree(proc, runtime.KILL_GRACE_S)
             break
         time.sleep(0.1)
     proc.wait()

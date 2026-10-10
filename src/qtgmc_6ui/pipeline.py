@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 import os
-import signal
 import subprocess
 import threading
 import time
@@ -51,7 +50,7 @@ from .models import (
 )
 from .runtime import CancelToken
 
-KILL_GRACE_S = 5.0
+KILL_GRACE_S = runtime.KILL_GRACE_S
 PROGRESS_INTERVAL_S = 0.25
 STDERR_TAIL = 50
 PARTIAL_SUFFIX = ".partial"
@@ -169,8 +168,7 @@ class _Encoder:
         self.last_stats: dict[str, str] = {}
         env = runtime.subprocess_env()
         env.setdefault("AV_LOG_FORCE_NOCOLOR", "1")
-        self.sp = runtime.StreamingProcess(cmd, stdin=subprocess.PIPE, on_stderr_line=self._line, env=env,
-                                           pdeathsig=signal.SIGKILL)
+        self.sp = runtime.StreamingProcess(cmd, stdin=subprocess.PIPE, on_stderr_line=self._line, env=env)
         self.proc = self.sp.proc
 
     @property

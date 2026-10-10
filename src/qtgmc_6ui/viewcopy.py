@@ -42,7 +42,6 @@ import json
 import os
 import re
 import shutil
-import signal
 import subprocess
 import threading
 import time
@@ -51,7 +50,7 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
 
-from . import encoders, esmux, muxmatrix, profiles, runtime
+from . import encoders, esmux, muxmatrix, osdep, profiles, runtime
 from .errors import CancelledError, ComponentError, EncodeError, ErrorCode, OutputError, UsageError
 from .events import Emitter, ProgressTracker
 from .models import (
@@ -73,7 +72,7 @@ from .runtime import CancelToken
 
 DOUBLE_RATE_MIN_FPS = 48.0  # a master at >= 48 fps is a bobbed (double-rate) master
 STATS_PERIOD = "0.5"
-KILL_GRACE_S = 5.0
+KILL_GRACE_S = runtime.KILL_GRACE_S
 _TOOL_OF = {VideoBackend.X264_CLI: "x264", VideoBackend.X265_CLI: "x265", VideoBackend.KVAZAAR_CLI: "kvazaar"}
 _UNKNOWN = {"", "unknown", "unspecified", "reserved"}
 _FRAME_RE = re.compile(r"frame=\s*(\d+)")
@@ -571,8 +570,7 @@ def _run_step(step: Step, *, emitter: Emitter, cancel: CancelToken, stage: str =
             stdout=subprocess.DEVNULL if last else subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=env,
-            start_new_session=True,
-            preexec_fn=runtime.pdeathsig_preexec(signal.SIGKILL),
+            **osdep.popen_kwargs(),
         )
         runtime.track(p)
         if prev_stdout is not None:
@@ -636,26 +634,8 @@ def _run_step(step: Step, *, emitter: Emitter, cancel: CancelToken, stage: str =
     return _StepResult([p.returncode for p in procs], tails, cancelled)
 
 
-def _signal(p: subprocess.Popen[bytes], sig: int) -> None:
-    if p.poll() is not None:
-        return
-    try:
-        os.killpg(p.pid, sig)  # pid == pgid (start_new_session)
-    except (ProcessLookupError, PermissionError):
-        try:
-            p.send_signal(sig)
-        except OSError:
-            pass
-
-
 def _terminate(procs: list[subprocess.Popen[bytes]]) -> None:
-    for p in procs:
-        _signal(p, signal.SIGTERM)
-    deadline = time.monotonic() + KILL_GRACE_S
-    while time.monotonic() < deadline and any(p.poll() is None for p in procs):
-        time.sleep(0.05)
-    for p in procs:
-        _signal(p, signal.SIGKILL)
+    osdep.stop_trees(procs, KILL_GRACE_S)
 
 
 def probe_output(path: str, ffprobe: str = "ffprobe") -> tuple[int | None, float | None, int | None]:
@@ -663,7 +643,7 @@ def probe_output(path: str, ffprobe: str = "ffprobe") -> tuple[int | None, float
     size = os.path.getsize(path) if os.path.exists(path) else None
     cmd = [ffprobe, "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets:format=duration", "-of", "json", path]
     try:
-        r = subprocess.run(cmd, capture_output=True, timeout=600, env=_env(), start_new_session=True, preexec_fn=runtime.pdeathsig_preexec(signal.SIGKILL))
+        r = subprocess.run(cmd, capture_output=True, timeout=600, env=_env(), **osdep.popen_kwargs())
         d = json.loads(r.stdout.decode("utf-8", "replace") or "{}")
     except (OSError, ValueError, subprocess.TimeoutExpired):
         return None, None, size
