@@ -523,7 +523,7 @@ class PluginInfo(Serializable):
 
 @dataclass
 class BuildInfo(Serializable):
-    """Written by packaging at build time to /usr/lib/qtgmc-6ui/build-info.json."""
+    """Written by packaging at build time to <install root>/build-info.json (paths.build_info_path)."""
 
     schema: int = BUILD_INFO_SCHEMA
     pkgver: str = ""

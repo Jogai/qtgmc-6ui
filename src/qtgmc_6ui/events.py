@@ -25,7 +25,7 @@ Cancel timing (commands.CANCEL_GRACE_S, runtime):
     only SIGINT twice (terminal Ctrl-C Ctrl-C) exits immediately, still after killing the
     children and removing partial outputs, and still with ``cancelled`` + ``done{130}``.
   * front ends should wait >= 20 s after ``cancel`` before SIGKILL.  Even SIGKILL is safe for
-    outputs: children die with the CLI (PR_SET_PDEATHSIG) and unfinished outputs only exist
+    outputs: children die with the CLI (osdep die-with-parent) and unfinished outputs only exist
     as ``<output>.partial``.
   * a closed stdout (the reader died) is treated as a cancel.
 """

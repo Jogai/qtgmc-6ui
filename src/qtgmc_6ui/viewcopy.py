@@ -28,10 +28,10 @@ an exact CFR timescale.  Colour tags: copied from the master via setparams in th
 (ffmpeg backend) or the tool's VUI flags (CLI backends); HEVC in mp4/mov is tagged hvc1.
 Progress: ``frame=`` stats of the ffmpeg process that decodes the master (per 0.5 s); multi-step
 plans report one continuous count (encode, timestamps, mux) over the sum of the steps.
-Cancel: SIGTERM to every process group of the running step, SIGKILL after 5 s, partial output
-and temp files removed, CancelledError(removed=[...]).  Children run in their own session with
-PR_SET_PDEATHSIG (runtime.pdeathsig_preexec) and are registered with runtime.track(), so a
-SIGKILLed CLI never leaves an orphan encoder.  The copy is written to a hidden ``.<name>.partial``
+Cancel: GRACEFUL stop of every child tree of the running step, FORCE after 5 s (osdep.stop_trees),
+partial output and temp files removed, CancelledError(removed=[...]).  Children are started with
+osdep.popen_kwargs() (own process group, die with the CLI) and registered with runtime.track(),
+so a killed CLI never leaves an orphan encoder.  The copy is written to a hidden ``.<name>.partial``
 file and renamed to its final name only after the ffprobe verification; a stale partial of the
 same output is removed before the next attempt.
 """
