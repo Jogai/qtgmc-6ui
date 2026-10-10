@@ -97,6 +97,12 @@ class PosixHost:
         reaches only us; stops address the whole tree) and, by default, death with its parent."""
         return {"start_new_session": True, "preexec_fn": self.die_with_parent_hook() if die_with_parent else None}
 
+    def adopt(self, p: Any) -> None:
+        """Called for every tracked child right after it started (Windows: Job Object). No-op here."""
+
+    def release(self, p: Any) -> None:
+        """Counterpart of adopt() after the child was reaped. No-op here."""
+
     def signal_tree(self, p: Any, level: StopLevel) -> None:
         """Signal a child started with popen_kwargs() and everything in its process group."""
         if p.poll() is not None:
@@ -272,6 +278,14 @@ def popen_kwargs(die_with_parent: bool = True) -> dict[str, Any]:
 
 def die_with_parent_hook(level: StopLevel = StopLevel.FORCE) -> Callable[[], None] | None:
     return HOST.die_with_parent_hook(level)
+
+
+def adopt(p: Any) -> None:
+    HOST.adopt(p)
+
+
+def release(p: Any) -> None:
+    HOST.release(p)
 
 
 def signal_tree(p: Any, level: StopLevel) -> None:

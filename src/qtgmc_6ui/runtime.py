@@ -76,11 +76,13 @@ _live_lock = threading.Lock()
 def _register(p: subprocess.Popen[Any]) -> None:
     with _live_lock:
         _live.add(p)
+    osdep.adopt(p)
 
 
 def _unregister(p: subprocess.Popen[Any]) -> None:
     with _live_lock:
         _live.discard(p)
+    osdep.release(p)
 
 
 def track(p: subprocess.Popen[Any]) -> None:
