@@ -86,6 +86,10 @@ class PosixHost:
         reaches only us; stops address the whole tree) and, by default, death with its parent."""
         return {"start_new_session": True, "preexec_fn": self.die_with_parent_hook() if die_with_parent else None}
 
+    def graceful_stop_available(self) -> bool:
+        """True: GRACEFUL (SIGTERM) reaches the child tree, so stop_tree waits ``grace_s``."""
+        return True
+
     def adopt(self, p: Any) -> None:
         """Called for every tracked child right after it started (Windows: Job Object). No-op here."""
 
@@ -283,6 +287,10 @@ def popen_kwargs(die_with_parent: bool = True) -> dict[str, Any]:
 
 def die_with_parent_hook(level: StopLevel = StopLevel.FORCE) -> Callable[[], None] | None:
     return HOST.die_with_parent_hook(level)
+
+
+def graceful_stop_available() -> bool:
+    return HOST.graceful_stop_available()
 
 
 def adopt(p: Any) -> None:

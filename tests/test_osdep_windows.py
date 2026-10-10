@@ -69,13 +69,14 @@ def test_naming_and_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None
     assert env == {"PYTHONUTF8": "1"}
     assert w.utf8_locale_edits(lambda k: "C") == ([], {})
     assert w.ascii_alias("C:\\x\\bad.avi", tmp_path) == "C:\\x\\bad.avi"
-    assert w.popen_kwargs() == {"creationflags": 0x200} and w.die_with_parent_hook() is None
+    assert w.die_with_parent_hook() is None
     assert "APPDATA" in w.diagnostic_env_keys
 
 
 class _Proc:
-    def __init__(self, alive: bool = True) -> None:
-        self.pid = 4242
+    def __init__(self, pid: int = 4242, alive: bool = True) -> None:
+        self.pid = pid
+        self._handle = 1000 + pid
         self.alive = alive
         self.killed = False
 
@@ -87,42 +88,54 @@ class _Proc:
         self.alive = False
 
     def wait(self, timeout: float | None = None) -> int:
-        import subprocess
-
-        if self.alive and timeout is not None:
-            raise subprocess.TimeoutExpired("x", timeout)
+        self.alive = False
         return 1
+
+
+def _k32(calls: list[tuple[str, Any]], assign_ok: bool = True) -> SimpleNamespace:
+    return SimpleNamespace(
+        AssignProcessToJobObject=lambda job, h: calls.append(("assign", job, h)) or assign_ok,
+        CloseHandle=lambda h: calls.append(("close", h)) or 1,
+        TerminateJobObject=lambda job, code: calls.append(("terminate_job", job)) or 1,
+    )
 
 
 def test_process_control_with_mocks(monkeypatch: pytest.MonkeyPatch) -> None:
     w = WindowsHost()
     calls: list[tuple[str, Any]] = []
-    k32 = SimpleNamespace(
-        OpenProcess=lambda *a: calls.append(("open", a)) or 7,
-        AssignProcessToJobObject=lambda job, h: calls.append(("assign", job)) or 1,
-        CloseHandle=lambda h: calls.append(("close", h)) or 1,
-        TerminateJobObject=lambda job, code: calls.append(("terminate_job", job)) or 1,
-    )
-    monkeypatch.setattr(w, "_kernel32", lambda: k32)
+    monkeypatch.setattr(w, "_kernel32", lambda: _k32(calls))
     monkeypatch.setattr(w, "_new_kill_on_close_job", lambda: "JOB")
-    sent: list[tuple[int, int]] = []
-    monkeypatch.setattr(signal, "CTRL_BREAK_EVENT", 1, raising=False)
-    monkeypatch.setattr(osdep_windows.os, "kill", lambda pid, sig: sent.append((pid, sig)))
+    assert w.graceful_stop_available() is False
     p = _Proc()
     w.adopt(p)
-    assert ("assign", "JOB") in calls and w._jobs[4242] == "JOB"
-    w.signal_tree(p, StopLevel.GRACEFUL)
-    assert sent == [(4242, 1)]
-    w.signal_tree(p, StopLevel.FORCE)
-    assert ("terminate_job", "JOB") in calls and not p.killed
-    q = _Proc()  # not adopted: falls back to Popen.kill
-    q.pid = 4343
-    assert w.stop_tree(q, 0.01) == 1 and q.killed
+    assert ("assign", "JOB", 1000 + 4242) in calls and w._jobs[4242] == "JOB"  # Popen handle, not OpenProcess
+    w.signal_tree(p, StopLevel.GRACEFUL)  # honest no-op: nothing sent, nothing killed
+    assert not any(c[0] == "terminate_job" for c in calls) and not p.killed
+    t0 = __import__("time").monotonic()
+    assert w.stop_tree(p, 5.0) == 1 and __import__("time").monotonic() - t0 < 1  # no grace wait
+    assert ("terminate_job", "JOB") in calls
+    q = _Proc(4343)  # not adopted: falls back to Popen.kill
+    w.stop_trees([q], 5.0)
+    assert q.killed
     w.release(p)
     assert 4242 not in w._jobs and ("close", "JOB") in calls
-    done = _Proc(alive=False)
-    w.signal_tree(done, StopLevel.FORCE)  # finished: nothing sent
-    assert not done.killed
+    with pytest.raises(TypeError):
+        w.signal_tree(_Proc(), 9)  # type: ignore[arg-type]
+
+
+def test_adopt_failure_is_logged_and_job_closed(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    w = WindowsHost()
+    calls: list[tuple[str, Any]] = []
+    monkeypatch.setattr(w, "_kernel32", lambda: _k32(calls, assign_ok=False))
+    monkeypatch.setattr(w, "_new_kill_on_close_job", lambda: "JOB")
+    monkeypatch.setattr(w, "_last_error", lambda: OSError(5, "Access is denied"))
+    with caplog.at_level("WARNING"):
+        w.adopt(_Proc())
+    assert ("close", "JOB") in calls and 4242 not in w._jobs and "kill-on-close job" in caplog.text
+
+
+def test_popen_kwargs_flags() -> None:
+    assert WindowsHost().popen_kwargs() == {"creationflags": 0x00000200 | 0x08000000}
 
 
 def test_termination_handlers_with_mocks(monkeypatch: pytest.MonkeyPatch) -> None:

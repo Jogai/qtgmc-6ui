@@ -186,3 +186,7 @@ def test_find_plugin_posix(tmp_path: Path) -> None:
     assert osdep.find_plugin(tmp_path, "bestsource") == tmp_path / "libbestsource.so"
     assert osdep.find_plugin(tmp_path, "mvutensils") is None  # a CPU variant is never picked
     assert osdep.find_plugin(tmp_path / "missing", "bestsource") is None
+
+
+def test_graceful_stop_available_posix() -> None:
+    assert osdep.graceful_stop_available() is True
