@@ -1,8 +1,11 @@
 # qtgmc-6UI
 
-QTGMC deinterlacing for archival video on Arch Linux, with a Qt6 GUI and a scriptable CLI. The display name is qtgmc-6UI. The Arch package, the command and the directories are `qtgmc-6ui` (pkgname must be lowercase). The "6" stands for Qt6.
+[![AUR](https://img.shields.io/aur/version/qtgmc-6ui?style=for-the-badge&logo=archlinux&logoColor=white&label=AUR)](https://aur.archlinux.org/packages/qtgmc-6ui)
+[![Latest tag](https://img.shields.io/github/v/tag/jogai/qtgmc-6ui?style=for-the-badge&logo=github&label=latest%20tag)](https://github.com/jogai/qtgmc-6ui/tags)
+[![License](https://img.shields.io/badge/license-GPL--2.0--only-blue?style=for-the-badge&logo=gnu&logoColor=white)](#licensing)
+[![Last commit](https://img.shields.io/github/last-commit/jogai/qtgmc-6ui?style=for-the-badge&logo=github)](https://github.com/jogai/qtgmc-6ui/commits)
 
-Status: 0.2.0, on the AUR as [qtgmc-6ui](https://aur.archlinux.org/packages/qtgmc-6ui). Source: https://github.com/jogai/qtgmc-6ui.
+QTGMC deinterlacing for archival video on Arch Linux, with a Qt6 GUI and a scriptable CLI. The display name is qtgmc-6UI. The Arch package, the command and the directories are `qtgmc-6ui` (pkgname must be lowercase). The "6" stands for Qt6.
 
 ## What it is, and why
 
