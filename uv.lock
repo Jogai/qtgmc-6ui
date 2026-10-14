@@ -4,12 +4,15 @@ requires-python = ">=3.13"
 
 [manifest]
 excludes = [
+    "attrs",
+    "cattrs",
     "numpy",
     "platformdirs",
     "psutil",
     "pyside6",
     "rich",
     "shiboken6",
+    "tomli-w",
     "typing-extensions",
     "vapoursynth",
     "vapoursynth-akarin",
@@ -35,9 +38,11 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cattrs", specifier = ">=24" },
     { name = "jetpytools", specifier = "==3.1.2" },
     { name = "platformdirs", specifier = ">=4" },
     { name = "psutil", specifier = ">=5" },
+    { name = "tomli-w", specifier = ">=1" },
     { name = "vsjetpack", specifier = "==2.2.6" },
 ]
 

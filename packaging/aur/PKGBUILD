@@ -33,10 +33,12 @@ depends=(
   vapoursynth-plugin-bestsource
   ffmpeg
   pyside6
+  python-cattrs
   python-numpy
   python-platformdirs
   python-psutil
   python-rich
+  python-tomli-w
   python-typing_extensions
   qt6-svg
   hicolor-icon-theme

@@ -11,14 +11,16 @@ requires-python = ">=3.13"
 license = "GPL-2.0-only"
 authors = [{ name = "jogai" }]
 # Runtime dependencies.  Packages that Arch provides (vapoursynth, pyside6,
-# numpy, psutil, platformdirs, rich, typing_extensions) are declared by the
-# PKGBUILD and excluded from uv resolution below, so uv.lock only holds the
-# bundled pure-python closure: vsjetpack + jetpytools.
+# numpy, psutil, platformdirs, cattrs + attrs, tomli_w, rich, typing_extensions)
+# are declared by the PKGBUILD and excluded from uv resolution below, so uv.lock
+# only holds the bundled pure-python closure: vsjetpack + jetpytools.
 dependencies = [
     "vsjetpack==2.2.6",
     "jetpytools==3.1.2",
     "platformdirs>=4",  # osdep: user config/cache dirs (Arch: python-platformdirs)
     "psutil>=5",  # osdep: process liveness (Arch: python-psutil)
+    "cattrs>=24",  # models: (de)serialisation, strict profile check (Arch: python-cattrs)
+    "tomli-w>=1",  # profiles: TOML writer (Arch: python-tomli-w)
 ]
 
 [project.scripts]
@@ -47,6 +49,9 @@ exclude-dependencies = [
     "numpy",
     "psutil",
     "platformdirs",
+    "cattrs",
+    "attrs",
+    "tomli-w",
     "rich",
     "typing-extensions",
     "pyside6",

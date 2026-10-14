@@ -17,6 +17,8 @@ Runtime `depends` (all from official repos; versions are those seen on 2026-10-0
 | python-numpy, python-rich, python-typing_extensions | imported by the app and vsjetpack |
 | python-psutil 7.2.2 | process liveness (`osdep.process_alive`) for the stale temporary-master cleanup; also imported by vsjetpack |
 | python-platformdirs 4.13.0 | user config and cache base directories (`osdep.config_base`/`cache_base`) |
+| python-cattrs 26.2.1 (pulls python-attrs 26.1.0) | (de)serialisation of every JSON/TOML contract in `models.py` and the strict profile key/type check |
+| python-tomli-w 1.2.0 | writes profile TOML files |
 | fftw, zimg, llvm22-libs, libgcc, libstdc++, glibc | runtime libraries of the bundled plugins |
 | hicolor-icon-theme, bash | icon directory; bash as listed in the PKGBUILD |
 
@@ -35,7 +37,7 @@ Bundled native VapourSynth plugins (built in `build()`, installed to `/usr/lib/q
 
 `vivtc` and `vszip` recipes exist in `plugins.json` but are not shipped (not needed at runtime).
 
-Bundled Python packages (pure-Python wheels from PyPI, hashes from `uv.lock`, installed offline into `/usr/lib/qtgmc-6ui/venv`): `vsjetpack` 2.2.6 and `jetpytools` 3.1.2 (both MIT), plus the dfttest2 module above. Neither is in the official repos. The venv is created with the versioned system interpreter and system site-packages, so `vapoursynth`, `PySide6`, `numpy`, `psutil`, `platformdirs`, `rich` and `typing_extensions` come from pacman. `[tool.uv] exclude-dependencies` in `pyproject.toml` keeps uv from resolving them from PyPI (and from shadowing the system VapourSynth with PyPI wheels).
+Bundled Python packages (pure-Python wheels from PyPI, hashes from `uv.lock`, installed offline into `/usr/lib/qtgmc-6ui/venv`): `vsjetpack` 2.2.6 and `jetpytools` 3.1.2 (both MIT), plus the dfttest2 module above. Neither is in the official repos. The venv is created with the versioned system interpreter and system site-packages, so `vapoursynth`, `PySide6`, `numpy`, `psutil`, `platformdirs`, `cattrs`, `attrs`, `tomli_w`, `rich` and `typing_extensions` come from pacman. `[tool.uv] exclude-dependencies` in `pyproject.toml` keeps uv from resolving them from PyPI (and from shadowing the system VapourSynth with PyPI wheels).
 
 Why bundle Python packages: Arch's guidelines do not forbid a private venv, and nothing in the repos provides vsjetpack/jetpytools. The AUR route would break the no-AUR rule and brings the rebuild-on-every-Python-bump problem described above. The guidelines discourage prebuilt `.whl` as sources; here they are pure-Python, hash-pinned and fetched through `source=()` so the build is offline and reproducible, and the app's own wheel is built from source (`python -m build`).
 
@@ -191,6 +193,8 @@ Single rate, the `faster`, `slower` and `placebo` presets, 4:1:1 and 4:2:2 10-bi
 | PySide6, Qt 6 (`pyside6`, `qt6-svg`) | qt.io, LGPL-3.0-only / GPL-3.0-only | GUI widgets and QProcess; `qt6-svg` loads the SVG icon | GUI only; the CLI never imports it |
 | numpy, rich, typing_extensions | numpy.org (custom), MIT, Python-2.0.1 | imported by vsjetpack and jetpytools; numpy also speeds up PNG writing in the preview | whenever vsjetpack is imported (master, preview output, doctor) |
 | psutil (`python-psutil`) | github.com/giampaolo/psutil, BSD-3-Clause | `osdep.process_alive`: whether the process that owns a `.<name>.nomaster.<pid>.tmp.mkv` temporary master still runs (a zombie counts as dead), so leftovers of killed `--no-master` runs are deleted and live runs are left alone; vsjetpack imports it too | every `deint`/`run-job` (stale temp-master scan of the output folder) |
+| cattrs (`python-cattrs`, with `python-attrs`) | github.com/python-attrs/cattrs, MIT (attrs: MIT) | `models.to_dict`/`from_dict` for analysis results and their cache, JobSpec/JobResult, DoctorReport, build-info and profiles (Fraction and enum hooks; the JSON stays byte-identical); a second, strict converter rejects unknown keys, wrong types and invalid enum values in profile TOML with path-qualified problems | every command that reads or writes a profile, a job, an analysis (or its cache), the doctor report or build-info |
+| tomli-w (`python-tomli-w`) | github.com/hukkin/tomli-w, MIT | writes profile TOML (`profiles.to_toml`); reading uses the stdlib `tomllib` | `profiles save`/`export`, the GUI profile editor, `profiles show` |
 | platformdirs (`python-platformdirs`) | github.com/tox-dev/platformdirs, MIT | `osdep.config_base`/`cache_base`: the user config and cache directories (`$XDG_CONFIG_HOME` or `~/.config`, `$XDG_CACHE_HOME` or `~/.cache`; relative or blank XDG values are ignored per the XDG spec), unless `QTGMC6UI_CONFIG_DIR`/`QTGMC6UI_CACHE_DIR` override them | every command that reads profiles, the GUI state or a cache (analysis, bestsource index, mux matrix, previews) |
 | zimg, fftw (`zimg`, `fftw`) | sekrit-twc/zimg (WTFPL), fftw.org (GPL-2.0-or-later) | shared libraries of the bundled mvutensils (and zimg of VapourSynth's built-in resize) | with mvutensils, i.e. every QTGMC run |
 | LLVM 22 (`llvm22-libs`) | llvm.org, Apache-2.0 WITH LLVM-exception | JIT compiler behind akarin's Expr | with akarin, i.e. every QTGMC run |
