@@ -21,12 +21,11 @@ import os
 import platform
 import re
 import shutil
-import subprocess
 import sys
 import time
 from typing import Any
 
-from . import __version__, buildinfo, osdep, paths, qtgmc, vsenv
+from . import __version__, buildinfo, osdep, paths, qtgmc, runtime, vsenv
 from .errors import ComponentError, ErrorCode
 from .models import (
     BuildInfo,
@@ -49,12 +48,14 @@ def _tool(name: str) -> ToolInfo:
     path = shutil.which(name)
     if not path:
         return ToolInfo(name, None, None, False, "not installed")
+    cmd = [path, *_VERSION_ARGS.get(name, ["--version"])]
     try:
-        r = subprocess.run([path, *_VERSION_ARGS.get(name, ["--version"])], capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=10)
-        text = (r.stdout or "") + (r.stderr or "")
-    except (OSError, subprocess.TimeoutExpired) as e:
-        return ToolInfo(name, path, None, False, f"cannot run: {e}")
+        r = runtime.run_capture(cmd, timeout=10)
+    except ComponentError as e:
+        return ToolInfo(name, path, None, False, f"cannot run: {e.message}")
+    if r.timed_out:
+        return ToolInfo(name, path, None, False, f"cannot run: Command '{cmd}' timed out after 10 seconds")
+    text = (r.stdout or "") + (r.stderr or "")
     first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
     m = re.search(r"(?:version|v)?\s*([0-9][0-9A-Za-z.+\-]*)", first)
     return ToolInfo(name, path, m.group(1) if m else first[:40], True, "")

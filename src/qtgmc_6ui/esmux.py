@@ -23,14 +23,12 @@ from __future__ import annotations
 
 import os
 import struct
-import subprocess
-import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from fractions import Fraction
 
-from . import osdep, runtime
+from . import runtime
 from .errors import CancelledError, EncodeError, ErrorCode
 from .runtime import CancelToken
 
@@ -67,50 +65,21 @@ def _env() -> dict[str, str]:
 
 
 def _run_csv(cmd: list[str], *, cancel: CancelToken | None, on_line: Callable[[str], None] | None = None) -> tuple[int, list[str], str]:
-    """Run ffprobe with ``-of compact``; stream stdout lines, poll ``cancel`` every 0.1 s (GRACEFUL
-    stop, then FORCE).  Returns (rc, lines, stderr tail)."""
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        stdin=subprocess.DEVNULL,
-        env=_env(),
-        **osdep.popen_kwargs(),
-    )
-    runtime.track(proc)
+    """Run ffprobe with ``-of compact`` through runtime.run_streaming; stdout lines are streamed to
+    ``on_line``, ``cancel`` stops the child (GRACEFUL, then FORCE).  Returns (rc, lines, stderr tail)."""
     lines: list[str] = []
-    err: list[bytes] = []
 
-    def reader() -> None:
-        assert proc.stdout is not None
-        for raw in proc.stdout:
-            line = raw.decode("utf-8", "replace").strip()
-            if line:
-                lines.append(line)
-                if on_line:
-                    on_line(line)
+    def take(raw: str) -> None:
+        line = raw.strip()
+        if line:
+            lines.append(line)
+            if on_line:
+                on_line(line)
 
-    def err_reader() -> None:
-        assert proc.stderr is not None
-        err.append(proc.stderr.read())
-
-    threads = [threading.Thread(target=reader, daemon=True), threading.Thread(target=err_reader, daemon=True)]
-    for t in threads:
-        t.start()
-    cancelled = False
-    while proc.poll() is None:
-        if cancel is not None and cancel.cancelled:
-            cancelled = True
-            osdep.stop_tree(proc, runtime.KILL_GRACE_S)
-            break
-        time.sleep(0.1)
-    proc.wait()
-    runtime.untrack(proc)
-    for t in threads:
-        t.join(timeout=5)
-    if cancelled:
+    r = runtime.run_streaming(cmd, on_stdout_line=take, cancel=cancel, env=_env(), keep_stderr=True)
+    if r.cancelled or (cancel is not None and cancel.cancelled):  # a cancel during a short run counts too
         raise CancelledError()
-    return proc.returncode, lines, (b"".join(err)).decode("utf-8", "replace")[-1000:]
+    return r.returncode, lines, r.stderr[-1000:]
 
 
 def packets(es_path: str, fmt: str, ffprobe: str = "ffprobe", *, cancel: CancelToken | None = None) -> list[AccessUnit]:

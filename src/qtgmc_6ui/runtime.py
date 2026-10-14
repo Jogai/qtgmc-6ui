@@ -326,6 +326,10 @@ class StreamingProcess:
         cancelled = timed_out = False
         deadline = None if timeout is None else time.monotonic() + timeout
         while True:
+            if cancel is not None and cancel.cancelled and self.proc.poll() is None:  # also before the first wait
+                cancelled = True
+                self.terminate(kill_grace_s)
+                break
             try:
                 self.proc.wait(_POLL_S)
                 break
@@ -403,13 +407,16 @@ def run_streaming(
     return sp.wait(tok, kill_grace_s, timeout)
 
 
-def run_capture(cmd: Sequence[str], *, timeout: float | None = None, env: dict[str, str] | None = None) -> RunResult:
+def run_capture(cmd: Sequence[str | bytes], *, timeout: float | None = None, env: dict[str, str] | None = None) -> RunResult:
     """Short commands (ffprobe, -version, -encoders): captured stdout/stderr, text, utf-8/replace.
 
-    Honours the process-wide cancel token; a timeout kills the child and sets ``timed_out``."""
+    Every child of the package that runs to completion goes through here (or run_streaming):
+    osdep.popen_kwargs (own group, dies with us), the UTF-8 env, tracking for hard exit.
+    Honours the process-wide cancel token; a timeout kills the child and sets ``timed_out``.
+    Arguments may be bytes (file names that are not valid UTF-8)."""
     try:
         p = subprocess.Popen(
-            [str(c) for c in cmd],
+            [c if isinstance(c, (str, bytes)) else str(c) for c in cmd],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

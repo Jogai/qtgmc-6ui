@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess
 from collections.abc import Sequence
 from fractions import Fraction
 from typing import Any
@@ -39,34 +38,25 @@ def run_tool(cmd: Sequence[str], *, timeout: float | None = None) -> tuple[int, 
 
     Raises ComponentError(TOOL_MISSING) when the executable cannot be started.
     """
+    from . import runtime
+
     try:
-        p = subprocess.run(
-            _argv_bytes(cmd),
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            env=tool_env(),
-            timeout=timeout,
-            check=False,
-        )
-    except FileNotFoundError as e:
+        r = runtime.run_capture(_argv_bytes(cmd), timeout=timeout, env=tool_env())
+    except ComponentError as e:
         raise ComponentError(
             ErrorCode.TOOL_MISSING,
             f"{cmd[0]} is not installed or not in PATH",
             "Install the ffmpeg package (it provides ffmpeg and ffprobe).",
-            {"tool": str(cmd[0]), "error": str(e)},
+            {"tool": str(cmd[0]), "error": e.message},
         ) from e
-    except subprocess.TimeoutExpired as e:
+    if r.timed_out:
         raise InputError(
             ErrorCode.ANALYSIS_FAILED,
             f"{cmd[0]} did not finish within {timeout} s",
             "",
             {"cmd": [str(c) for c in cmd]},
-        ) from e
-    return (
-        p.returncode,
-        p.stdout.decode("utf-8", "replace"),
-        p.stderr.decode("utf-8", "replace"),
-    )
+        )
+    return r.returncode, r.stdout, r.stderr
 
 
 def stderr_tail(text: str, n: int = STDERR_TAIL_LINES) -> list[str]:

@@ -18,7 +18,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import threading
 from pathlib import Path
 from typing import Any
@@ -62,12 +61,6 @@ def subprocess_env() -> dict[str, str]:
     return runtime.subprocess_env()
 
 
-def child_kwargs() -> dict[str, Any]:
-    """Popen keyword arguments for every child: env, own session, dies with its parent
-    (osdep.popen_kwargs) so a killed CLI leaves no orphan."""
-    return {"env": subprocess_env(), **osdep.popen_kwargs()}
-
-
 def _capture(cmd: list[str], timeout: float = _CAPTURE_TIMEOUT_S) -> tuple[int, str, str]:
     """rc, stdout, stderr (text, utf-8/replace).  Missing executable -> ComponentError."""
     if shutil.which(cmd[0]) is None:
@@ -77,11 +70,10 @@ def _capture(cmd: list[str], timeout: float = _CAPTURE_TIMEOUT_S) -> tuple[int, 
             f"install ffmpeg ({osdep.install_hint('ffmpeg')})" if cmd[0] in REQUIRED_TOOLS else f"install the optional package providing {cmd[0]}",
             {"tool": cmd[0]},
         )
-    try:
-        r = subprocess.run(cmd, capture_output=True, timeout=timeout, stdin=subprocess.DEVNULL, **child_kwargs())
-    except subprocess.TimeoutExpired as e:
-        return 124, (e.stdout or b"").decode("utf-8", "replace"), (e.stderr or b"").decode("utf-8", "replace")
-    return r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
+    from . import runtime
+
+    r = runtime.run_capture(cmd, timeout=timeout, env=subprocess_env())
+    return (124 if r.timed_out else r.returncode), r.stdout, r.stderr
 
 
 def _ffmpeg_text(args: list[str], ffmpeg: str = "ffmpeg") -> str:

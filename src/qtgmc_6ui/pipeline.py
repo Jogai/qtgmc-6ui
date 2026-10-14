@@ -52,6 +52,7 @@ from .models import (
 from .runtime import CancelToken
 
 KILL_GRACE_S = runtime.KILL_GRACE_S
+PROBE_TIMEOUT_S = 600.0  # ffprobe of a finished master (packet count of a long file)
 PROGRESS_INTERVAL_S = 0.25
 STDERR_TAIL = 50
 PARTIAL_SUFFIX = ".partial"
@@ -209,7 +210,7 @@ def _probe(path: str, *, count_packets: bool, ffprobe: str = "ffprobe") -> dict[
     if count_packets:
         cmd.append("-count_packets")
     cmd.append(path)
-    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    r = runtime.run_capture(cmd, timeout=PROBE_TIMEOUT_S)
     if r.returncode != 0:
         raise EncodeError(ErrorCode.ENCODE_FAILED, f"ffprobe cannot read {path}: {r.stderr.strip()[-500:]}", "", {"path": path})
     return json.loads(r.stdout or "{}")

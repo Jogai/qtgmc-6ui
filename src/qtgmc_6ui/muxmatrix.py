@@ -19,13 +19,13 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess
 import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import encoders, osdep, paths
+from . import encoders, osdep, paths, runtime
+from .errors import ComponentError
 from .models import MuxProbe, MuxVerdict, from_dict, to_dict
 
 SEED_PATH = Path(__file__).parent / "data" / "mux_seed.json"
@@ -163,12 +163,14 @@ def _readback(path: str, ffprobe: str) -> str | None:
     """codec_name of the first stream ffprobe finds, "" when it finds none, None on error."""
     cmd = [ffprobe, "-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0", path]
     try:
-        r = subprocess.run(cmd, capture_output=True, timeout=PROBE_TIMEOUT_S, **encoders.child_kwargs())
-    except (OSError, subprocess.TimeoutExpired):
+        r = runtime.run_capture(cmd, timeout=PROBE_TIMEOUT_S, env=encoders.subprocess_env())
+    except ComponentError:
+        return None
+    if r.timed_out:
         return None
     if r.returncode != 0:
         return ""
-    names = [ln.strip().strip(",") for ln in r.stdout.decode("utf-8", "replace").splitlines() if ln.strip()]
+    names = [ln.strip().strip(",") for ln in r.stdout.splitlines() if ln.strip()]
     return names[0] if names else ""
 
 
@@ -217,12 +219,10 @@ def run_probe(container: str, encoder: str, *, kind: str, ffmpeg: str = "ffmpeg"
         out = os.path.join(td, f"probe.{container}")
         cmd = _probe_cmd(container, encoder, kind, out, ffmpeg)
         try:
-            r = subprocess.run(cmd, capture_output=True, timeout=PROBE_TIMEOUT_S, **encoders.child_kwargs())
-            rc, stderr = r.returncode, r.stderr.decode("utf-8", "replace")
-        except subprocess.TimeoutExpired:
-            rc, stderr = 124, "probe timed out"
-        except OSError as e:
-            rc, stderr = 127, str(e)
+            r = runtime.run_capture(cmd, timeout=PROBE_TIMEOUT_S, env=encoders.subprocess_env())
+            rc, stderr = (124, "probe timed out") if r.timed_out else (r.returncode, r.stderr)
+        except ComponentError as e:
+            rc, stderr = 127, e.message
         size = os.path.getsize(out) if os.path.exists(out) else 0
         readback = _readback(out, ffprobe) if rc == 0 and size > 0 else None
     verdict, note = classify_result(rc, size, stderr, readback, _codec_of(encoder, ffmpeg))

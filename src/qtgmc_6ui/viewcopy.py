@@ -643,9 +643,11 @@ def probe_output(path: str, ffprobe: str = "ffprobe") -> tuple[int | None, float
     size = os.path.getsize(path) if os.path.exists(path) else None
     cmd = [ffprobe, "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets:format=duration", "-of", "json", path]
     try:
-        r = subprocess.run(cmd, capture_output=True, timeout=600, env=_env(), **osdep.popen_kwargs())
-        d = json.loads(r.stdout.decode("utf-8", "replace") or "{}")
-    except (OSError, ValueError, subprocess.TimeoutExpired):
+        r = runtime.run_capture(cmd, timeout=600, env=_env())
+        if r.timed_out:
+            return None, None, size
+        d = json.loads(r.stdout or "{}")
+    except (ComponentError, ValueError):
         return None, None, size
     frames = None
     for s in d.get("streams") or []:
