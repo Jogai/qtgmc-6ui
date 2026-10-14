@@ -289,13 +289,9 @@ def _cache_path(ffmpeg: str) -> Path:
 
 
 def _load_disk(ffmpeg: str) -> dict[str, Any]:
-    p = _cache_path(ffmpeg)
-    try:
-        d = json.loads(p.read_text("utf-8"))
-        if isinstance(d, dict) and d.get("schema") == 1:
-            return d
-    except (OSError, ValueError):
-        pass
+    d = osdep.load_json(_cache_path(ffmpeg))
+    if isinstance(d, dict) and d.get("schema") == 1:
+        return d
     return {"schema": 1, "muxers": None, "encoders": None, "details": {}, "muxer_details": {}}
 
 
@@ -303,11 +299,9 @@ def _save_disk(ffmpeg: str, d: dict[str, Any]) -> None:
     p = _cache_path(ffmpeg)
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(f".{os.getpid()}-{threading.get_ident()}.tmp")
         with _lock:
             text = json.dumps(d, indent=0, sort_keys=True)
-        tmp.write_text(text, "utf-8")
-        os.replace(tmp, p)
+        osdep.atomic_write_text(p, text)
     except OSError:
         pass  # cache is an optimisation only
 

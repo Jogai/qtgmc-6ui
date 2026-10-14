@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
-from . import classify, colorimetry, idet, paths, telecine
+from . import classify, colorimetry, idet, osdep, paths, telecine
 from . import ffprobe as ffprobe_mod
 from .errors import ErrorCode, InputError, QtgmcError
 from .events import Emitter
@@ -253,13 +253,8 @@ def cache_path(path: str) -> Path:
 def load_cached(path: str, *, scan: ScanParams | None = None) -> AnalysisResult | None:
     """Cached result for ``path`` (same size/mtime) analysed with the same scan parameters, else None."""
     scan = scan or ScanParams()
-    p = cache_path(path)
-    try:
-        # surrogateescape: file names that are not valid UTF-8 round-trip through the JSON
-        with open(p, encoding="utf-8", errors="surrogateescape") as fh:
-            doc = json.load(fh)
-    except (OSError, ValueError):
-        return None
+    # surrogateescape: file names that are not valid UTF-8 round-trip through the JSON
+    doc = osdep.load_json(cache_path(path), errors="surrogateescape")
     if not isinstance(doc, dict) or doc.get("schema") != ANALYSIS_SCHEMA:
         return None
     if doc.get("_scan") != scan.to_dict():
@@ -275,18 +270,10 @@ def store_cached(result: AnalysisResult, *, scan: ScanParams | None = None) -> N
     doc = result.to_dict()
     doc["_scan"] = scan.to_dict()
     p = cache_path(result.input)
-    tmp = p.with_suffix(f".{os.getpid()}.tmp")
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
-        with open(tmp, "w", encoding="utf-8", errors="surrogateescape") as fh:
-            json.dump(doc, fh, ensure_ascii=False, indent=1)
-        os.replace(tmp, p)
+        osdep.atomic_write_text(p, json.dumps(doc, ensure_ascii=False, indent=1), errors="surrogateescape")
     except (OSError, ValueError):
         # cache is best effort: never fail an analysis because ~/.cache is unwritable
         # (ValueError covers UnicodeEncodeError for un-encodable content)
         pass
-    finally:
-        try:
-            tmp.unlink(missing_ok=True)
-        except OSError:
-            pass

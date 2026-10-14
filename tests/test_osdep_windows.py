@@ -164,3 +164,21 @@ def test_find_plugin_windows_versioned_names(tmp_path: Path) -> None:
     assert w.find_plugin(tmp_path, "bestsource") == tmp_path / "BestSource-R22-win64-msvc.dll"
     assert w.find_plugin(tmp_path, "mvutensils") == tmp_path / "MVUtensils.dll"
     assert w.find_plugin(tmp_path, "akarin") is None and w.find_plugin(tmp_path / "x", "akarin") is None
+
+
+def test_replace_file_retries_permission_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls = []
+
+    def flaky(src: str, dst: str) -> None:
+        calls.append(src)
+        if len(calls) < 3:
+            raise PermissionError(13, "in use")
+
+    monkeypatch.setattr(osdep_windows.os, "replace", flaky)
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    WindowsHost().replace_file("a", "b")
+    assert len(calls) == 3
+    calls.clear()
+    monkeypatch.setattr(osdep_windows.os, "replace", lambda s, d: (_ for _ in ()).throw(PermissionError(13, "x")))
+    with pytest.raises(PermissionError):
+        WindowsHost().replace_file("a", "b")

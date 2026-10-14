@@ -173,3 +173,34 @@ def test_find_plugin_posix(tmp_path: Path) -> None:
 
 def test_graceful_stop_available_posix() -> None:
     assert osdep.graceful_stop_available() is True
+
+
+def test_atomic_write_and_load_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    target = tmp_path / "c.json"
+    osdep.atomic_write_text(target, '{"a": 1}')
+    assert osdep.load_json(target) == {"a": 1} and list(tmp_path.iterdir()) == [target]
+    assert target.stat().st_mode & 0o777 == 0o666 & ~_umask()  # usual permissions, not mkstemp's 0600
+    osdep.atomic_write_bytes(target, b"[1, 2]")  # replaces atomically
+    assert osdep.load_json(target) == [1, 2]
+    assert osdep.load_json(tmp_path / "missing.json") is None
+    (tmp_path / "bad.json").write_text("{nope")
+    assert osdep.load_json(tmp_path / "bad.json") is None
+
+    def boom(src: str, dst: str) -> None:
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(osdep.HOST, "replace_file", boom)
+    with pytest.raises(OSError):
+        osdep.atomic_write_text(tmp_path / "d.json", "x")
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["bad.json", "c.json"]  # temp file removed
+    with pytest.raises(OSError):
+        osdep.atomic_write_text(tmp_path / "missing-dir" / "e.json", "x")
+    with pytest.raises(UnicodeEncodeError):
+        osdep.atomic_write_text(tmp_path / "f.json", "\udcff")
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["bad.json", "c.json"]
+
+
+def _umask() -> int:
+    m = os.umask(0)
+    os.umask(m)
+    return m

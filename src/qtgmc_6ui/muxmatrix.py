@@ -25,7 +25,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import encoders, paths
+from . import encoders, osdep, paths
 from .models import MuxProbe, MuxVerdict, from_dict, to_dict
 
 SEED_PATH = Path(__file__).parent / "data" / "mux_seed.json"
@@ -90,10 +90,7 @@ def _table(ffmpeg: str) -> dict[str, MuxProbe]:
 
 
 def _merge_file(t: dict[str, MuxProbe], path: Path, version: str, *, overwrite: bool) -> None:
-    try:
-        d = json.loads(path.read_text("utf-8"))
-    except (OSError, ValueError):
-        return
+    d = osdep.load_json(path)
     if not isinstance(d, dict) or d.get("ffmpeg_version") != version:
         return
     with _lock:
@@ -118,9 +115,7 @@ def _save(ffmpeg: str) -> None:
     p = _cache_file(build)
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(f".{os.getpid()}-{threading.get_ident()}.tmp")
-        tmp.write_text(json.dumps({"schema": 1, "ffmpeg_version": build, "probes": rows}, indent=0), "utf-8")
-        os.replace(tmp, p)
+        osdep.atomic_write_text(p, json.dumps({"schema": 1, "ffmpeg_version": build, "probes": rows}, indent=0))
     except OSError:
         pass
 

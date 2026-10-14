@@ -11,6 +11,7 @@ target) or ``osdep_windows.WindowsHost`` (experimental).  Module-level functions
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -148,6 +149,10 @@ class PosixHost:
         return True
 
     # ------------------------------------------------------------------ paths
+    def replace_file(self, src: str, dst: str) -> None:
+        """Atomic rename over an existing file."""
+        os.replace(src, dst)
+
     def install_root(self) -> Path:
         return Path("/usr/lib/qtgmc-6ui")
 
@@ -306,6 +311,50 @@ def process_alive(pid: int) -> bool:
         return False
     except psutil.AccessDenied:
         return True
+
+
+def atomic_write_bytes(path: str | Path, data: bytes) -> None:
+    """Write ``data`` to ``path`` atomically: a uniquely named hidden temp file in the same
+    directory (same filesystem; created with the usual umask permissions), then an atomic
+    replace (retried on Windows while scanners hold the target).  The temp file never survives
+    a failure; errors propagate (OSError)."""
+    import secrets
+
+    target = Path(path)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    for _ in range(100):
+        tmp = target.with_name(f".{target.name}.{secrets.token_hex(4)}.tmp")
+        try:
+            fd = os.open(tmp, flags, 0o666)
+            break
+        except FileExistsError:
+            continue
+    else:
+        raise FileExistsError(f"no free temporary name next to {target}")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        HOST.replace_file(str(tmp), str(target))
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def atomic_write_text(path: str | Path, text: str, *, errors: str = "strict") -> None:
+    """UTF-8 text through atomic_write_bytes (``errors="surrogateescape"`` for odd file names)."""
+    atomic_write_bytes(path, text.encode("utf-8", errors))
+
+
+def load_json(path: str | Path, *, errors: str = "strict") -> Any:
+    """Parsed JSON of a cache/state file, or None when it is missing, unreadable or invalid."""
+    try:
+        with open(path, encoding="utf-8", errors=errors) as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
 
 
 def install_termination_handlers(callback: TerminationCallback) -> bool:

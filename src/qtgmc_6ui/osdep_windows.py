@@ -201,6 +201,20 @@ class WindowsHost:
         return True
 
     # ------------------------------------------------------------------ paths
+    def replace_file(self, src: str, dst: str) -> None:
+        """os.replace, retried briefly: on Windows a virus scanner, the search indexer or a
+        player holding ``dst`` makes it fail with PermissionError for a moment."""
+        import time
+
+        for attempt in range(10):
+            try:
+                os.replace(src, dst)
+                return
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
+
     def install_root(self) -> Path:
         return Path(os.environ.get("ProgramFiles") or r"C:\Program Files") / APP_ID
 

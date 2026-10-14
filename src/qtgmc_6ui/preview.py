@@ -26,6 +26,7 @@ import time
 import zlib
 from typing import IO, Any
 
+from . import osdep
 from .errors import ComponentError, ErrorCode, QtgmcError, UsageError
 from .models import (
     AnalysisResult,
@@ -65,16 +66,9 @@ def _write_png_raw(path: str, width: int, height: int, filtered: bytes) -> int:
         sys.stdout.buffer.write(data)
         sys.stdout.buffer.flush()
         return len(data)
-    tmp = f"{path}.part-{os.getpid()}"
     try:
-        with open(tmp, "wb") as f:
-            f.write(data)
-        os.replace(tmp, path)  # the GUI never sees a half-written PNG
+        osdep.atomic_write_bytes(path, data)  # the GUI never sees a half-written PNG
     except OSError as e:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
         from .errors import OutputError
 
         raise OutputError(ErrorCode.OUTPUT_NOT_WRITABLE, f"cannot write {path}: {e.strerror}") from None

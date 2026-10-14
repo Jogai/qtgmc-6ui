@@ -459,9 +459,7 @@ def save(profile: Profile, path: Path | None = None) -> Path:
     target = Path(path) if path else paths.profiles_dir() / f"{profile.id}.toml"
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        tmp = target.with_name(f".{target.name}.{os.getpid()}.tmp")
-        tmp.write_text(to_toml(profile), "utf-8")
-        os.replace(tmp, target)
+        osdep.atomic_write_text(target, to_toml(profile))
     except OSError as e:
         raise QtgmcError(ErrorCode.OUTPUT_NOT_WRITABLE, f"cannot write profile {target}: {e}", "", {"path": str(target)}) from e
     profile.path = str(target)
