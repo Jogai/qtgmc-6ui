@@ -65,57 +65,18 @@ LOSSLESS_ARGS: dict[str, list[str]] = {
 
 
 # --------------------------------------------------------------------------- TOML
-def _toml_str(s: str) -> str:
-    out = []
-    for ch in s:
-        if ch == "\\":
-            out.append("\\\\")
-        elif ch == '"':
-            out.append('\\"')
-        elif ch == "\n":
-            out.append("\\n")
-        elif ch == "\t":
-            out.append("\\t")
-        elif ord(ch) < 0x20 or ord(ch) == 0x7F:
-            out.append(f"\\u{ord(ch):04X}")
-        else:
-            out.append(ch)
-    return '"' + "".join(out) + '"'
-
-
-def _toml_value(v: Any) -> str:
-    if isinstance(v, bool):
-        return "true" if v else "false"
-    if isinstance(v, int):
-        return str(v)
-    if isinstance(v, float):
-        return repr(v) if v == v and v not in (float("inf"), float("-inf")) else "0.0"
-    if isinstance(v, str):
-        return _toml_str(v)
-    if isinstance(v, (list, tuple)):
-        return "[" + ", ".join(_toml_value(x) for x in v) + "]"
-    raise TypeError(f"unsupported TOML value: {v!r}")
-
-
-def _emit_table(name: str, d: dict[str, Any], out: list[str]) -> None:
-    scalars = {k: v for k, v in d.items() if not isinstance(v, dict) and v is not None}
-    tables = {k: v for k, v in d.items() if isinstance(v, dict)}
-    if name:
-        out.append(f"[{name}]")
-    for k, v in scalars.items():
-        out.append(f"{k} = {_toml_value(v)}")
-    for k, v in tables.items():
-        out.append("")
-        _emit_table(f"{name}.{k}" if name else k, v, out)
+def _without_none(d: dict[str, Any]) -> dict[str, Any]:
+    return {k: _without_none(v) if isinstance(v, dict) else v for k, v in d.items() if v is not None}
 
 
 def to_toml(profile: Profile) -> str:
+    """TOML text of a profile (tomli_w; ``builtin``/``path`` and unset optional values omitted)."""
+    import tomli_w
+
     d = to_dict(profile)
     d.pop("builtin", None)
     d.pop("path", None)
-    out: list[str] = []
-    _emit_table("", d, out)
-    return "\n".join(out) + "\n"
+    return tomli_w.dumps(_without_none(d))
 
 
 def _type_ok(tp: Any, v: Any) -> bool:

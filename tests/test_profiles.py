@@ -68,7 +68,7 @@ def test_toml_escaping_and_optional_fields() -> None:
 def test_control_characters_round_trip() -> None:
     p = Profile(id="ctrl", name="win\r\nline", description="bell\x07 del\x7f esc\x1b tab\t")
     text = profiles.to_toml(p)
-    assert "\r" not in text and "\x07" not in text and "\\u0007" in text and "\\u007F" in text
+    assert "\r" not in text and "\x07" not in text and "\\u0007" in text and "\\u007f" in text.lower()
     back = profiles.from_toml(text)
     assert back.name == p.name and back.description == p.description
 
