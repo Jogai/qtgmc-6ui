@@ -13,13 +13,10 @@ Built-ins for the optional tools (x264/x265/kvazaar CLI, sox) ship too but are h
 
 from __future__ import annotations
 
-import dataclasses
 import os
 import re
 import tomllib
-import types
-import typing
-from dataclasses import fields, is_dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -79,46 +76,72 @@ def to_toml(profile: Profile) -> str:
     return tomli_w.dumps(_without_none(d))
 
 
-def _type_ok(tp: Any, v: Any) -> bool:
-    origin = typing.get_origin(tp)
-    if origin in (typing.Union, types.UnionType):
-        return any(_type_ok(a, v) for a in typing.get_args(tp))
-    if tp is type(None):
-        return v is None
-    if origin is list:
-        (item,) = typing.get_args(tp) or (Any,)
-        return isinstance(v, list) and all(_type_ok(item, x) for x in v)
-    if tp is float:
-        return isinstance(v, (int, float)) and not isinstance(v, bool)
-    if tp is int:
-        return isinstance(v, int) and not isinstance(v, bool)
-    if tp is bool:
-        return isinstance(v, bool)
-    if tp is str or (isinstance(tp, type) and issubclass(tp, str)):
-        return isinstance(v, str)
-    return True
+class _WrongType(TypeError):
+    """A value of the wrong TOML type; args[0] is the problem text after the key."""
 
 
-def _check_keys(cls: type, d: dict[str, Any], prefix: str, problems: list[str]) -> None:
-    """Unknown keys and wrongly typed scalars/lists (hand-edited or hostile TOML)."""
-    fmap = {f.name: f for f in fields(cls)}
-    hints = typing.get_type_hints(cls)
-    for k, v in d.items():
-        if k in ("builtin", "path"):
-            continue
-        if k not in fmap:
-            problems.append(f"unknown key {prefix}{k}")
-            continue
-        f = fmap[k]
-        if isinstance(v, dict):
-            if f.default_factory is not dataclasses.MISSING:
-                inst = f.default_factory()
-                if is_dataclass(inst):
-                    _check_keys(type(inst), v, f"{prefix}{k}.", problems)
-                    continue
-            problems.append(f"{prefix}{k} must not be a table")
-        elif not _type_ok(hints[k], v):
-            problems.append(f"{prefix}{k} has the wrong type ({type(v).__name__})")
+_strict: Any = None
+
+
+def _strict_converter() -> Any:
+    """cattrs converter for hand-edited/hostile TOML: unknown keys and wrong types are errors,
+    no coercion (bool is not an int, a string is not a list), enums must be valid values."""
+    global _strict
+    if _strict is None:
+        import cattrs
+
+        c = cattrs.Converter(forbid_extra_keys=True)
+        allowed = {str: (str,), int: (int,), float: (int, float), bool: (bool,)}
+
+        def scalar(base: type) -> Any:
+            def hook(v: Any, tp: Any) -> Any:
+                if isinstance(v, dict):
+                    raise _WrongType("must not be a table")
+                if not isinstance(v, allowed[base]) or (base is not bool and isinstance(v, bool)):
+                    raise _WrongType(f"has the wrong type ({type(v).__name__})")
+                return tp(v) if tp is not base else v  # StrEnum: ValueError for an unknown value
+
+            return hook
+
+        def str_list(v: Any, tp: Any) -> list[str]:
+            if not isinstance(v, list) or not all(isinstance(x, str) for x in v):
+                raise _WrongType(f"has the wrong type ({type(v).__name__})")
+            return v
+
+        for base in allowed:
+            c.register_structure_hook(base, scalar(base))
+        c.register_structure_hook(StrEnum, scalar(str))
+        c.register_structure_hook_func(lambda t: t == list[str], str_list)
+        _strict = c
+    return _strict
+
+
+def _strict_problems(d: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """(key/type problems, invalid enum values) of a profile document, path-qualified."""
+    import cattrs
+
+    try:
+        _strict_converter().structure(d, Profile)
+        return [], []
+    except cattrs.BaseValidationError as e:
+        group = e
+    problems: list[str] = []
+    values: list[str] = []
+
+    def walk(exc: BaseException, path: str) -> None:
+        if isinstance(exc, cattrs.ForbiddenExtraKeysError):
+            problems.extend(f"unknown key {path}{k}" for k in sorted(exc.extra_fields))
+        elif isinstance(exc, BaseExceptionGroup):
+            for sub in exc.exceptions:
+                note = next((n for n in getattr(sub, "__notes__", []) if hasattr(n, "name")), None)
+                walk(sub, f"{path}{note.name}." if note is not None else path)
+        elif isinstance(exc, _WrongType):
+            problems.append(f"{path[:-1]} {exc}")
+        else:
+            values.append(str(exc))
+
+    walk(group, "")
+    return problems, values
 
 
 def from_toml(text: str, *, path: str | None = None, builtin: bool = False) -> Profile:
@@ -126,14 +149,12 @@ def from_toml(text: str, *, path: str | None = None, builtin: bool = False) -> P
         d = tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
         raise QtgmcError(ErrorCode.PROFILE_INVALID, f"profile is not valid TOML: {e}", "", {"path": path or ""}) from e
-    problems: list[str] = []
-    _check_keys(Profile, d, "", problems)
+    problems, values = _strict_problems(d)
     if problems:
         raise QtgmcError(ErrorCode.PROFILE_INVALID, "profile has invalid keys: " + ", ".join(problems), "", {"path": path or "", "problems": problems})
-    try:
-        p = Profile.from_dict(d)
-    except (ValueError, TypeError, KeyError) as e:
-        raise QtgmcError(ErrorCode.PROFILE_INVALID, f"profile has an invalid value: {e}", "", {"path": path or ""}) from e
+    if values:
+        raise QtgmcError(ErrorCode.PROFILE_INVALID, f"profile has an invalid value: {values[0]}", "", {"path": path or ""})
+    p = Profile.from_dict(d)
     p.builtin = builtin
     p.path = path
     if not p.id and path:

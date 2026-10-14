@@ -8,12 +8,9 @@ field changes meaning; adding optional fields with defaults is not a bump.
 
 from __future__ import annotations
 
-import types
-import typing
 from dataclasses import dataclass, field, fields, is_dataclass
-from enum import Enum, StrEnum
+from enum import StrEnum
 from fractions import Fraction
-from pathlib import Path
 from typing import Any, TypeVar
 
 from . import osdep
@@ -126,63 +123,42 @@ class MuxVerdict(StrEnum):
 
 
 # --------------------------------------------------------------------------- (de)serialisation
-def _to_plain(v: Any) -> Any:
-    if is_dataclass(v) and not isinstance(v, type):
-        return {f.name: _to_plain(getattr(v, f.name)) for f in fields(v)}
-    if isinstance(v, Enum):
-        return v.value
-    if isinstance(v, Fraction):
-        return f"{v.numerator}/{v.denominator}"
-    if isinstance(v, Path):
-        return str(v)
-    if isinstance(v, (list, tuple)):
-        return [_to_plain(x) for x in v]
-    if isinstance(v, dict):
-        return {str(k): _to_plain(x) for k, x in v.items()}
-    return v
+_converter: Any = None
 
 
-def _from_plain(tp: Any, v: Any) -> Any:
-    if v is None:
-        return None
-    origin = typing.get_origin(tp)
-    if origin in (typing.Union, types.UnionType):
-        args = [a for a in typing.get_args(tp) if a is not type(None)]
-        return _from_plain(args[0], v) if len(args) == 1 else v
-    if origin in (list, tuple):
-        (item,) = typing.get_args(tp)[:1] or (Any,)
-        return [_from_plain(item, x) for x in v]
-    if origin is dict:
-        _, item = typing.get_args(tp) or (str, Any)
-        return {k: _from_plain(item, x) for k, x in v.items()}
-    if isinstance(tp, type):
-        if is_dataclass(tp):
-            return from_dict(tp, v)
-        if issubclass(tp, Enum):
-            return tp(v)
-        if tp is Fraction:
-            return Fraction(v) if isinstance(v, str) else Fraction(v)
-        if tp is Path:
-            return Path(v)
-    return v
+def converter() -> Any:
+    """The cattrs converter of all contracts: Enum <-> value, Fraction <-> "num/den", scalars as
+    they are; missing keys take the defaults, unknown keys are ignored (profiles.from_toml is
+    the strict path)."""
+    global _converter
+    if _converter is None:
+        import cattrs
+
+        c = cattrs.Converter(detailed_validation=False)  # plain ValueError/TypeError for callers
+        c.register_unstructure_hook(Fraction, lambda f: f"{f.numerator}/{f.denominator}")
+        # by runtime type, like plain data (a list[PluginInfo] may hold dicts)
+        c.register_unstructure_hook_factory(
+            is_dataclass, lambda _cl: lambda o: {f.name: c.unstructure(getattr(o, f.name)) for f in fields(o)}
+        )
+        c.register_structure_hook(Fraction, lambda v, _t: Fraction(v))
+        for tp in (str, int, float, bool):  # no coercion: values are taken as they come
+            c.register_structure_hook(tp, lambda v, _t: v)
+        c.register_structure_hook(StrEnum, lambda v, t: t(v))  # before str in the MRO
+        _converter = c
+    return _converter
 
 
 def to_dict(obj: Any) -> dict[str, Any]:
-    return _to_plain(obj)
+    return converter().unstructure(obj)
 
 
 def from_dict(cls: type[T], data: dict[str, Any]) -> T:
-    hints = typing.get_type_hints(cls)
-    kwargs = {}
-    for f in fields(cls):  # type: ignore[arg-type]
-        if f.name in data:
-            kwargs[f.name] = _from_plain(hints[f.name], data[f.name])
-    return cls(**kwargs)
+    return converter().structure(data, cls)
 
 
 class Serializable:
     def to_dict(self) -> dict[str, Any]:
-        return _to_plain(self)
+        return to_dict(self)
 
     @classmethod
     def from_dict(cls: type[T], data: dict[str, Any]) -> T:
