@@ -28,6 +28,7 @@ pkgbase = qtgmc-6ui
 	depends = ffmpeg
 	depends = pyside6
 	depends = python-numpy
+	depends = python-platformdirs
 	depends = python-psutil
 	depends = python-rich
 	depends = python-typing_extensions

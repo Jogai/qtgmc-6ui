@@ -7,9 +7,10 @@ QTGMC6UI_BUILD_INFO   build-info.json path              (default <install root>/
 QTGMC6UI_CONFIG_DIR   user config dir                   (default <config base>/qtgmc-6ui)
 QTGMC6UI_CACHE_DIR    user cache dir                    (default <cache base>/qtgmc-6ui)
 
-The OS defaults come from osdep.  Linux: install root /usr/lib/qtgmc-6ui, config base
-$XDG_CONFIG_HOME (~/.config), cache base $XDG_CACHE_HOME (~/.cache).  Windows (experimental):
-%ProgramFiles%\\qtgmc-6ui, %APPDATA%, %LOCALAPPDATA%.
+The OS defaults come from osdep (config/cache bases via platformdirs).  Linux: install root
+/usr/lib/qtgmc-6ui, config base $XDG_CONFIG_HOME (absolute only, else ~/.config), cache base
+$XDG_CACHE_HOME (else ~/.cache).  Windows (experimental): %ProgramFiles%\\qtgmc-6ui, %APPDATA%,
+%LOCALAPPDATA%.
 """
 
 from __future__ import annotations

@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 [manifest]
 excludes = [
     "numpy",
+    "platformdirs",
     "psutil",
     "pyside6",
     "rich",
@@ -35,6 +36,8 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "jetpytools", specifier = "==3.1.2" },
+    { name = "platformdirs", specifier = ">=4" },
+    { name = "psutil", specifier = ">=5" },
     { name = "vsjetpack", specifier = "==2.2.6" },
 ]
 

@@ -1,6 +1,6 @@
 """The one seam for OS-dependent behaviour (processes, signals, paths, native libraries,
 child environment).  Everything else in the package calls the functions here and never
-touches process groups, signal numbers, XDG/AppData paths or ``.so`` names itself
+touches process groups, signal numbers, user-dir conventions or ``.so`` names itself
 (tests/test_osdep_boundary.py enforces that).
 
 The host is chosen at import time from ``sys.platform``: ``PosixHost`` (Linux, the real
@@ -132,20 +132,6 @@ class PosixHost:
         for p in procs:
             self.signal_tree(p, StopLevel.FORCE)
 
-    def process_alive(self, pid: int) -> bool:
-        """True while ``pid`` runs (zombies count as dead; unknown counts as alive)."""
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return False
-        except PermissionError:
-            return True
-        st = Path(f"/proc/{pid}/stat")
-        try:
-            return st.read_text().split(") ")[-1].split()[0] != "Z"
-        except OSError:
-            return True
-
     def install_termination_handlers(self, callback: TerminationCallback) -> bool:
         """SIGINT -> callback("SIGINT", True); SIGTERM -> callback("SIGTERM", False).
         Returns False (nothing installed) outside the main thread."""
@@ -164,12 +150,6 @@ class PosixHost:
     # ------------------------------------------------------------------ paths
     def install_root(self) -> Path:
         return Path("/usr/lib/qtgmc-6ui")
-
-    def config_base(self) -> Path:
-        return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
-
-    def cache_base(self) -> Path:
-        return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
 
     def default_python_executable(self) -> str:
         return "/usr/bin/python3.14"
@@ -314,7 +294,18 @@ def stop_trees(procs: list[Any], grace_s: float = 5.0) -> None:
 
 
 def process_alive(pid: int) -> bool:
-    return HOST.process_alive(pid)
+    """True while ``pid`` runs (psutil, every OS): a zombie or a vanished pid is dead, a pid we
+    may not inspect (AccessDenied) counts as alive."""
+    import psutil
+
+    if not psutil.pid_exists(pid):
+        return False
+    try:
+        return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:  # includes ZombieProcess
+        return False
+    except psutil.AccessDenied:
+        return True
 
 
 def install_termination_handlers(callback: TerminationCallback) -> bool:
@@ -326,11 +317,19 @@ def install_root() -> Path:
 
 
 def config_base() -> Path:
-    return HOST.config_base()
+    """The user config base (platformdirs, no app name): Linux $XDG_CONFIG_HOME (absolute values
+    only) else ~/.config; Windows the roaming %APPDATA%; macOS ~/Library/Application Support."""
+    import platformdirs
+
+    return Path(platformdirs.user_config_dir(roaming=True))
 
 
 def cache_base() -> Path:
-    return HOST.cache_base()
+    """The user cache base (platformdirs): Linux $XDG_CACHE_HOME (absolute) else ~/.cache;
+    Windows %LOCALAPPDATA%; macOS ~/Library/Caches."""
+    import platformdirs
+
+    return Path(platformdirs.user_cache_dir())
 
 
 def default_python_executable() -> str:

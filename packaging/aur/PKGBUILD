@@ -34,6 +34,7 @@ depends=(
   ffmpeg
   pyside6
   python-numpy
+  python-platformdirs
   python-psutil
   python-rich
   python-typing_extensions

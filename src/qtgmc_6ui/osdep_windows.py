@@ -16,7 +16,9 @@ happens inside a method.  Mapping of the POSIX behaviour:
                          stops when its y4m pipe closes.
   FORCE stop (tree)      TerminateJobObject (falls back to Popen.kill)
   termination handlers   SIGINT (Ctrl-C, interactive) and SIGBREAK (Ctrl-Break / console close)
-  paths                  %APPDATA%, %LOCALAPPDATA%, %ProgramFiles%\\qtgmc-6ui
+  paths                  config/cache bases via platformdirs (%APPDATA%, %LOCALAPPDATA%; common
+                         osdep code), install root %ProgramFiles%\\qtgmc-6ui
+  process liveness       psutil (common osdep code)
   native libraries       *<stem>*.dll (versioned names), found with find_plugin()
   child environment      PYTHONUTF8=1 only (no POSIX locale variables); no ASCII alias needed
 """
@@ -38,9 +40,6 @@ log = logging.getLogger(__name__)
 
 _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
 _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
-_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-_ERROR_ACCESS_DENIED = 5
-_STILL_ACTIVE = 259
 _CREATE_NEW_PROCESS_GROUP = 0x00000200
 _CREATE_NO_WINDOW = 0x08000000
 
@@ -79,8 +78,6 @@ class WindowsHost:
             k.AssignProcessToJobObject.restype, k.AssignProcessToJobObject.argtypes = B, [H, H]
             k.TerminateJobObject.restype, k.TerminateJobObject.argtypes = B, [H, wintypes.UINT]
             k.CloseHandle.restype, k.CloseHandle.argtypes = B, [H]
-            k.OpenProcess.restype, k.OpenProcess.argtypes = H, [D, B, D]
-            k.GetExitCodeProcess.restype, k.GetExitCodeProcess.argtypes = B, [H, ctypes.POINTER(D)]
             self._k32 = k
         return self._k32
 
@@ -188,23 +185,6 @@ class WindowsHost:
         for p in procs:
             self.signal_tree(p, StopLevel.FORCE)
 
-    def process_alive(self, pid: int) -> bool:
-        """Running per GetExitCodeProcess (a process whose real exit code is 259 reads as alive)."""
-        import ctypes
-        from ctypes import wintypes
-
-        k = self._kernel32()
-        h = k.OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
-        if not h:
-            return ctypes.get_last_error() == _ERROR_ACCESS_DENIED  # exists, not ours
-        try:
-            code = wintypes.DWORD()
-            if not k.GetExitCodeProcess(h, ctypes.byref(code)):
-                return True
-            return code.value == _STILL_ACTIVE
-        finally:
-            k.CloseHandle(h)
-
     def install_termination_handlers(self, callback: TerminationCallback) -> bool:
         import signal
 
@@ -223,12 +203,6 @@ class WindowsHost:
     # ------------------------------------------------------------------ paths
     def install_root(self) -> Path:
         return Path(os.environ.get("ProgramFiles") or r"C:\Program Files") / APP_ID
-
-    def config_base(self) -> Path:
-        return Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
-
-    def cache_base(self) -> Path:
-        return Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
 
     def default_python_executable(self) -> str:
         return sys.executable

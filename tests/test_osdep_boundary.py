@@ -22,7 +22,9 @@ import pytest
 SRC = Path(__file__).resolve().parents[1] / "src" / "qtgmc_6ui"
 SEAM = {"osdep.py", "osdep_base.py", "osdep_windows.py"}
 
-FORBIDDEN_MODULES = {"fcntl", "termios", "ctypes", "pwd", "grp", "resource", "signal", "winreg", "msvcrt", "_winapi"}
+# psutil/platformdirs: only osdep uses them, so their OS behaviour stays behind the seam.
+FORBIDDEN_MODULES = {"fcntl", "termios", "ctypes", "pwd", "grp", "resource", "signal", "winreg", "msvcrt", "_winapi",
+                     "psutil", "platformdirs"}
 FORBIDDEN_ATTRS = {
     "os": {"killpg", "getpgid", "setpgid", "setsid", "fork", "getppid", "kill", "symlink", "readlink", "getuid",
            "geteuid", "sched_getaffinity", "X_OK", "name", "setpgrp"},
@@ -113,6 +115,7 @@ def _files() -> list[Path]:
 
 BAD = '''"""Docstrings may mention /usr/lib, XDG_CONFIG_HOME, libfoo.so and /proc freely."""
 import os, signal, fcntl
+import psutil
 import os as o
 from os import killpg
 import sys
@@ -147,12 +150,12 @@ def test_scanner_catches_the_known_tricks(tmp_path: Path) -> None:
     bad = tmp_path / "bad.py"
     bad.write_text(BAD)
     text = "\n".join(_violations(bad, tmp_path))
-    for needle in ("import signal", "import fcntl", "from os import killpg", "os.killpg", "os.setsid",
+    for needle in ("import signal", "import fcntl", "import psutil", "from os import killpg", "os.killpg", "os.setsid",
                    "getattr(os, 'killpg')", "preexec_fn=", "start_new_session=", "**{'start_new_session'",
                    "os.symlink", "sys.platform", "os.name", "string with /usr/", "string with .so name",
                    "string with /proc", "string with XDG_*", "string with /dev/", "string with /tmp/"):
         assert needle in text, needle
-    assert ":1:" not in text and ":20:" not in text  # docstrings are not scanned
+    assert ":1:" not in text and ":21:" not in text  # docstrings are not scanned
 
 
 def test_scanner_ignores_ordinary_code(tmp_path: Path) -> None:
