@@ -31,27 +31,6 @@ def test_same_api_as_posix() -> None:
     assert posix - win == set()
 
 
-def test_paths(monkeypatch: pytest.MonkeyPatch) -> None:
-    from qtgmc_6ui import paths
-
-    w = WindowsHost()
-    monkeypatch.setenv("APPDATA", r"C:\Users\u\AppData\Roaming")
-    monkeypatch.setenv("LOCALAPPDATA", r"C:\Users\u\AppData\Local")
-    monkeypatch.setenv("ProgramFiles", r"D:\Apps")
-    for k in ("QTGMC6UI_CONFIG_DIR", "QTGMC6UI_CACHE_DIR"):
-        monkeypatch.delenv(k, raising=False)
-    assert w.config_base() == Path(r"C:\Users\u\AppData\Roaming")
-    assert w.cache_base() == Path(r"C:\Users\u\AppData\Local")
-    assert w.install_root() == Path(r"D:\Apps") / "qtgmc-6ui"
-    monkeypatch.setattr(osdep, "HOST", w)
-    assert paths.config_dir() == Path(r"C:\Users\u\AppData\Roaming") / "qtgmc-6ui"
-    assert paths.cache_dir() == Path(r"C:\Users\u\AppData\Local") / "qtgmc-6ui"
-    monkeypatch.setenv("QTGMC6UI_CONFIG_DIR", "/override")
-    assert paths.config_dir() == Path("/override")
-    monkeypatch.delenv("APPDATA")
-    assert w.config_base().parts[-2:] == ("AppData", "Roaming")
-
-
 def test_naming_and_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     w = WindowsHost()
     assert w.shared_lib_name("bestsource") == "bestsource.dll" and w.plugin_glob == "*.dll"

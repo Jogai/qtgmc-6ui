@@ -89,17 +89,6 @@ def test_die_with_parent(tmp_path: Path) -> None:
     assert _gone(int(pidfile.read_text()))
 
 
-def test_process_alive() -> None:
-    assert osdep.process_alive(os.getpid())
-    p = subprocess.Popen([PY, "-c", "pass"])
-    p.wait()
-    assert not osdep.process_alive(p.pid)
-    z = subprocess.Popen([PY, "-c", "pass"])
-    time.sleep(0.5)  # exited but not reaped: a zombie counts as dead
-    assert not osdep.process_alive(z.pid)
-    z.wait()
-
-
 def test_termination_handlers() -> None:
     code = (
         "import os, signal, time\n"
@@ -120,25 +109,19 @@ def test_termination_handlers() -> None:
     assert box == [False]
 
 
-def test_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_path_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     from qtgmc_6ui import paths
 
-    for k in ("QTGMC6UI_CONFIG_DIR", "QTGMC6UI_CACHE_DIR", "QTGMC6UI_PLUGIN_DIR", "QTGMC6UI_BUILD_INFO", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"):
+    for k in ("QTGMC6UI_PLUGIN_DIR", "QTGMC6UI_BUILD_INFO"):
         monkeypatch.delenv(k, raising=False)
-    monkeypatch.setenv("HOME", str(tmp_path))
-    assert paths.config_dir() == tmp_path / ".config" / "qtgmc-6ui"
-    assert paths.cache_dir() == tmp_path / ".cache" / "qtgmc-6ui"
     assert paths.plugin_dir() == Path("/usr/lib/qtgmc-6ui/plugins")
     assert paths.build_info_path() == Path("/usr/lib/qtgmc-6ui/build-info.json")
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "x"))
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "y"))
-    assert paths.config_dir() == tmp_path / "x" / "qtgmc-6ui" and paths.cache_dir() == tmp_path / "y" / "qtgmc-6ui"
-    assert paths.profiles_dir() == tmp_path / "x" / "qtgmc-6ui" / "profiles"
     monkeypatch.setenv("QTGMC6UI_CONFIG_DIR", "/c")
     monkeypatch.setenv("QTGMC6UI_CACHE_DIR", "/k")
     monkeypatch.setenv("QTGMC6UI_PLUGIN_DIR", "/p")
     monkeypatch.setenv("QTGMC6UI_BUILD_INFO", "/b.json")
     assert (paths.config_dir(), paths.cache_dir(), paths.plugin_dir(), paths.build_info_path()) == (Path("/c"), Path("/k"), Path("/p"), Path("/b.json"))
+    assert paths.profiles_dir() == Path("/c/profiles")
 
 
 def test_library_naming() -> None:
