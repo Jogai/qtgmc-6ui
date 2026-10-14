@@ -19,13 +19,12 @@ import importlib.metadata
 import importlib.util
 import os
 import platform
-import re
 import shutil
 import sys
 import time
 from typing import Any
 
-from . import __version__, buildinfo, osdep, paths, qtgmc, runtime, vsenv
+from . import __version__, buildinfo, osdep, paths, qtgmc, vsenv
 from .errors import ComponentError, ErrorCode
 from .models import (
     BuildInfo,
@@ -40,37 +39,11 @@ from .models import (
 
 REQUIRED_TOOLS = ("ffmpeg", "ffprobe")
 OPTIONAL_TOOLS = ("x264", "x265", "kvazaar", "sox")
-_VERSION_ARGS = {"ffmpeg": ["-version"], "ffprobe": ["-version"], "x264": ["--version"], "x265": ["--version"],
-                 "kvazaar": ["--version"], "sox": ["--version"]}
-
-
-def _tool(name: str) -> ToolInfo:
-    path = shutil.which(name)
-    if not path:
-        return ToolInfo(name, None, None, False, "not installed")
-    cmd = [path, *_VERSION_ARGS.get(name, ["--version"])]
-    try:
-        r = runtime.run_capture(cmd, timeout=10)
-    except ComponentError as e:
-        return ToolInfo(name, path, None, False, f"cannot run: {e.message}")
-    if r.timed_out:
-        return ToolInfo(name, path, None, False, f"cannot run: Command '{cmd}' timed out after 10 seconds")
-    text = (r.stdout or "") + (r.stderr or "")
-    first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
-    m = re.search(r"(?:version|v)?\s*([0-9][0-9A-Za-z.+\-]*)", first)
-    return ToolInfo(name, path, m.group(1) if m else first[:40], True, "")
-
-
 def detect_tools() -> list[ToolInfo]:
-    try:
-        from .encoders import detect_tools as enc_detect
+    """encoders.detect_tools (the one implementation); ImportError/other errors propagate."""
+    from .encoders import detect_tools as enc_detect
 
-        tools = enc_detect()
-        if tools:
-            return list(tools)
-    except Exception:
-        pass
-    return [_tool(n) for n in REQUIRED_TOOLS + OPTIONAL_TOOLS]
+    return list(enc_detect())
 
 
 def _environment() -> dict[str, str]:
@@ -204,16 +177,23 @@ def run(*, load_plugins: bool = True, smoke: bool = True) -> DoctorReport:
         checks.append(DoctorCheck("vapoursynth_core", "VapourSynth core / plugins", Status.SKIP, "--no-load"))
 
     # tools
-    rep.tools = detect_tools()
-    by_name = {t.name: t for t in rep.tools}
-    for name in REQUIRED_TOOLS:
-        t = by_name.get(name) or _tool(name)
-        checks.append(DoctorCheck(f"tool:{name}", f"{name}", Status.OK if t.available else Status.FAIL,
-                                  f"{t.version or ''} {t.path or ''}".strip() or t.note, "" if t.available else f"install {osdep.package_ref('ffmpeg')}"))
-    for name in OPTIONAL_TOOLS:
-        t = by_name.get(name) or _tool(name)
-        checks.append(DoctorCheck(f"tool:{name}", f"{name} (optional)", Status.OK if t.available else Status.SKIP,
-                                  f"{t.version or ''} {t.path or ''}".strip() if t.available else t.note or "not installed"))
+    try:
+        rep.tools = detect_tools()
+    except Exception as e:  # the encoders module itself is broken: report, do not re-detect
+        rep.tools = []
+        checks.append(DoctorCheck("tools", "external tools (ffmpeg, ffprobe, encoders)", Status.FAIL,
+                                  f"tool detection failed: {type(e).__name__}: {e}",
+                                  "the installation is broken; reinstall qtgmc-6ui"))
+    else:
+        by_name = {t.name: t for t in rep.tools}
+        for name in REQUIRED_TOOLS:
+            t = by_name.get(name) or ToolInfo(name, note="not detected")
+            checks.append(DoctorCheck(f"tool:{name}", f"{name}", Status.OK if t.available else Status.FAIL,
+                                      f"{t.version or ''} {t.path or ''}".strip() or t.note, "" if t.available else f"install {osdep.package_ref('ffmpeg')}"))
+        for name in OPTIONAL_TOOLS:
+            t = by_name.get(name) or ToolInfo(name, note="not detected")
+            checks.append(DoctorCheck(f"tool:{name}", f"{name} (optional)", Status.OK if t.available else Status.SKIP,
+                                      f"{t.version or ''} {t.path or ''}".strip() if t.available else t.note or "not installed"))
 
     # locale
     fse = sys.getfilesystemencoding().lower().replace("-", "")

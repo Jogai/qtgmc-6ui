@@ -86,3 +86,22 @@ def test_doctor_full_stack_ok(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     d = json.loads(json.dumps(rep.to_dict()))
     assert d["ok"] is True and d["runtime"]["python"] == ".".join(map(str, sys.version_info[:3]))
     assert os.environ.get("QTGMC6UI_PLUGIN_DIR", "") in text
+
+
+def test_doctor_reports_a_broken_encoders_module(monkeypatch) -> None:
+    """No fallback tool detection: a failing encoders import becomes one FAIL check."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def broken(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "encoders" and level == 1 or name == "qtgmc_6ui.encoders":
+            raise ImportError("simulated: encoders is broken")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", broken)
+    rep = doctor.run(load_plugins=False, smoke=False)
+    tools = [c for c in rep.checks if c.id == "tools" or c.id.startswith("tool:")]
+    assert [c.id for c in tools] == ["tools"] and tools[0].status.value == "fail"
+    assert "simulated: encoders is broken" in tools[0].detail and "reinstall" in tools[0].hint
+    assert rep.ok is False and rep.tools == []
