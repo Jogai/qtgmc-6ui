@@ -15,7 +15,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from . import buildinfo, osdep, paths, qtgmc
+from . import buildinfo, cachegc, osdep, paths, qtgmc
 from .errors import BlockedError, ErrorCode, InputError
 from .models import AnalysisResult, FieldOrder, FieldOrderChoice, MasterSettings, Preset, RateMode
 from .vsenv import VSCore
@@ -95,7 +95,9 @@ def encodable_path(path: str) -> str:
     except UnicodeEncodeError:
         pass
     try:
-        return osdep.ascii_alias(path, paths.cache_dir() / "links")
+        link = osdep.ascii_alias(path, paths.cache_dir() / "links")
+        cachegc.prune_links()
+        return link
     except OSError as e:
         raise InputError(
             ErrorCode.INPUT_UNREADABLE,
@@ -154,12 +156,16 @@ def open_source(vscore: VSCore, path: str, field_order: FieldOrder, *, cachepath
     if cachepath is None:
         cachepath = str(paths.bs_index_dir())
     Path(cachepath).mkdir(parents=True, exist_ok=True)
+    src = encodable_path(path)
     try:
-        clip = core.bs.VideoSource(encodable_path(path), cachepath=cachepath)
+        clip = core.bs.VideoSource(src, cachepath=cachepath)
     except vs.Error as e:
         raise InputError(
             ErrorCode.INPUT_UNREADABLE, f"bestsource cannot open {path}: {e}", "", {"path": path, "error": str(e)}
         ) from e
+    if cachepath == str(paths.bs_index_dir()):
+        cachegc.touch_bs_index(src)
+        cachegc.prune_bs_index()
     return core.std.SetFieldBased(clip, 2 if field_order == FieldOrder.TFF else 1)
 
 

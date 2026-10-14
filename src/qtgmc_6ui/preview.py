@@ -152,6 +152,10 @@ class Renderer:
                 raise QtgmcError(
                     ErrorCode.INPUT_UNREADABLE, f"cannot open {path} with bestsource: {e}", "the file may be damaged or in an unsupported format"
                 ) from None
+            from . import cachegc
+
+            cachegc.touch_bs_index(path)
+            cachegc.prune_bs_index()
             self.sources[path] = clip
             f0 = clip.get_frame(0)
             m = int(f0.props.get("_Matrix", 2))

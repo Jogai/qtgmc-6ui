@@ -24,7 +24,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import encoders, osdep, paths, runtime
+from . import cachegc, encoders, osdep, paths, runtime
 from .errors import ComponentError
 from .models import MuxProbe, MuxVerdict, from_dict, to_dict
 
@@ -118,6 +118,7 @@ def _save(ffmpeg: str) -> None:
         osdep.atomic_write_text(p, json.dumps({"schema": 1, "ffmpeg_version": build, "probes": rows}, indent=0))
     except OSError:
         pass
+    cachegc.prune_ffmpeg_caches([p])
 
 
 def seed_from_package_data() -> None:

@@ -22,7 +22,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from . import osdep, paths
+from . import cachegc, osdep, paths
 from .errors import ComponentError, ErrorCode, UsageError
 from .models import EncoderInfo, EncoderOption, MuxerInfo, ToolInfo, from_dict, to_dict
 
@@ -296,6 +296,7 @@ def _save_disk(ffmpeg: str, d: dict[str, Any]) -> None:
         osdep.atomic_write_text(p, text)
     except OSError:
         pass  # cache is an optimisation only
+    cachegc.prune_ffmpeg_caches([p])
 
 
 def _disk(ffmpeg: str) -> dict[str, Any]:

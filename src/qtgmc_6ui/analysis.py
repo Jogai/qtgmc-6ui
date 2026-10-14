@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
-from . import classify, colorimetry, idet, osdep, paths, telecine
+from . import cachegc, classify, colorimetry, idet, osdep, paths, telecine
 from . import ffprobe as ffprobe_mod
 from .errors import ErrorCode, InputError, QtgmcError
 from .events import Emitter
@@ -254,15 +254,18 @@ def load_cached(path: str, *, scan: ScanParams | None = None) -> AnalysisResult 
     """Cached result for ``path`` (same size/mtime) analysed with the same scan parameters, else None."""
     scan = scan or ScanParams()
     # surrogateescape: file names that are not valid UTF-8 round-trip through the JSON
-    doc = osdep.load_json(cache_path(path), errors="surrogateescape")
+    p = cache_path(path)
+    doc = osdep.load_json(p, errors="surrogateescape")
     if not isinstance(doc, dict) or doc.get("schema") != ANALYSIS_SCHEMA:
         return None
     if doc.get("_scan") != scan.to_dict():
         return None
     try:
-        return AnalysisResult.from_dict(doc)
+        result = AnalysisResult.from_dict(doc)
     except Exception:
         return None
+    cachegc.touch(p)  # LRU by mtime
+    return result
 
 
 def store_cached(result: AnalysisResult, *, scan: ScanParams | None = None) -> None:
@@ -277,3 +280,4 @@ def store_cached(result: AnalysisResult, *, scan: ScanParams | None = None) -> N
         # cache is best effort: never fail an analysis because ~/.cache is unwritable
         # (ValueError covers UnicodeEncodeError for un-encodable content)
         pass
+    cachegc.prune_analysis_cache()

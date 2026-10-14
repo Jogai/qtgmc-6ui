@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import paths
+from .. import cachegc, paths
 from ..models import MasterSettings, RateMode
 from .backend import CliCall, CliResult
 from .preview_server import PreviewServer
@@ -48,7 +48,7 @@ CAPTIONS = {
 }
 
 
-PREVIEW_CACHE_LIMIT = 500 * 1024 * 1024
+PREVIEW_CACHE_LIMIT = cachegc.PREVIEW_LIMITS["max_bytes"]
 
 
 def preview_cache() -> Path:
@@ -58,17 +58,17 @@ def preview_cache() -> Path:
 
 
 def prune_preview_cache(limit: int = PREVIEW_CACHE_LIMIT) -> None:
-    """Keep the rendered-PNG cache under ``limit`` bytes, dropping the least recently used."""
-    try:
-        files = [(f.stat(), f) for f in preview_cache().glob("*.png")]
-    except OSError:
-        return
-    total = sum(st.st_size for st, _ in files)
-    for st, f in sorted(files, key=lambda x: x[0].st_atime):
-        if total <= limit:
-            break
-        f.unlink(missing_ok=True)
-        total -= st.st_size
+    """Keep the rendered-PNG cache under ``limit`` bytes (and cachegc.PREVIEW_LIMITS' age),
+    dropping the least recently used: by mtime, which every cache hit renews."""
+    cachegc.prune_preview_cache(preview_cache(), max_bytes=limit)
+
+
+def load_cached(path: str) -> QPixmap:
+    """The cached PNG (null pixmap when absent); a hit counts as a use for the LRU."""
+    pm = QPixmap(path)
+    if not pm.isNull():
+        cachegc.touch(path)
+    return pm
 
 
 @dataclass(frozen=True)
@@ -360,7 +360,7 @@ class PreviewWidget(QWidget):
             self._wanted[slot] = key
             if key is None:
                 continue
-            pm = QPixmap(key.cache_path())
+            pm = load_cached(key.cache_path())
             if not pm.isNull():
                 self._show(slot, key, pm)
             else:

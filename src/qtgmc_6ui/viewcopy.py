@@ -374,6 +374,22 @@ def _temp(output: str, tag: str, ext: str) -> str:
     return str(p.with_name(f".{p.name}.tmp{os.getpid()}.{tag}.{ext}"))
 
 
+def _stale_temps(output: str) -> list[str]:
+    """``_temp`` files of ``output`` left by processes that no longer run (a killed CLI)."""
+    p = Path(output)
+    prefix = f".{p.name}.tmp"
+    out = []
+    try:
+        names = os.listdir(p.parent)
+    except OSError:
+        return out
+    for n in names:
+        pid = n[len(prefix):].split(".", 1)[0] if n.startswith(prefix) else ""
+        if pid.isdigit() and int(pid) != os.getpid() and not osdep.process_alive(int(pid)):
+            out.append(str(p.with_name(n)))
+    return out
+
+
 def build_plan(master: str, master_probe: ProbeInfo, profile: Profile, output: str, *, ffmpeg: str = "ffmpeg") -> ViewPlan:
     v, a, video = profile.video, profile.audio, master_probe.video
     tags = _tags(video)
@@ -686,7 +702,7 @@ def run_view(
     if problems:
         raise EncodeError(ErrorCode.PROFILE_INVALID, f"profile '{profile.id}' is invalid: {problems[0]}", "run `qtgmc-6ui profiles validate`", {"profile": profile.id, "problems": problems})
     partial = partial_path(output)
-    _remove([partial])  # stale partial of an earlier killed run
+    _remove([partial, *_stale_temps(partial)])  # leftovers of an earlier killed run
     plan = build_plan(master, master_probe, profile, partial)
     _warn_mux(profile, emitter)
     if cancel.cancelled:

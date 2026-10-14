@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 from PySide6.QtCore import QByteArray, Qt
@@ -83,7 +84,7 @@ class MainWindow(QMainWindow):
         self._restore_layout()
         self.preview.set_master(self.settings_panel.master_settings())
         self._update_start()
-        prune_preview_cache()
+        threading.Thread(target=prune_preview_cache, name="prune-preview-cache", daemon=True).start()
         if run_startup_checks:
             self.run_startup_checks()
 

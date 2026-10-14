@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
-from .. import osdep, paths
+from .. import cachegc, osdep, paths
 from ..events import Event
 from ..models import AnalysisResult, JobSpec
 from .backend import EventProcess, ProcessOutcome
@@ -192,6 +192,7 @@ class QueueController(QObject):
             return
         job_file = jobs_dir() / f"job-{item.id}.json"
         osdep.atomic_write_text(job_file, json.dumps(spec.to_dict(), indent=2, ensure_ascii=False))
+        cachegc.prune_gui_jobs(job_file.parent, keep=[job_file])
         item.status, item.progress, item.outputs, item.error = JobStatus.RUNNING, 0.0, [], None
         self.model.notify(item)
         state = RunState(keep_master=spec.keep_master)
