@@ -256,8 +256,9 @@ def format_name(template: str, input_path: str) -> str:
         name = template.format(stem=stem, name=Path(input_path).name)
     except (KeyError, IndexError, ValueError) as e:
         raise UsageError(f"bad --name template {template!r}: {e}", "only {stem} and {name} are available") from None
-    if not name or "/" in name or name in (".", ".."):
-        raise UsageError(f"bad --name template {template!r}: gives {name!r}")
+    reason = osdep.invalid_name_reason(name)
+    if reason:
+        raise UsageError(f"bad --name template {template!r}: gives {name!r}", f"the file name {reason}")
     return name
 
 

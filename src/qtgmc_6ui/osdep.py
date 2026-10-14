@@ -153,6 +153,17 @@ class PosixHost:
         """Atomic rename over an existing file."""
         os.replace(src, dst)
 
+    def invalid_name_reason(self, name: str) -> str | None:
+        """Why ``name`` cannot be a single file name here (None when it can): POSIX forbids
+        only '/' and NUL (and the special names '.' and '..')."""
+        if not name or name in (".", ".."):
+            return "empty or a special name"
+        if "/" in name:
+            return "contains '/'"
+        if "\0" in name:
+            return "contains a NUL character"
+        return None
+
     def install_root(self) -> Path:
         return Path("/usr/lib/qtgmc-6ui")
 
@@ -359,6 +370,10 @@ def load_json(path: str | Path, *, errors: str = "strict") -> Any:
 
 def install_termination_handlers(callback: TerminationCallback) -> bool:
     return HOST.install_termination_handlers(callback)
+
+
+def invalid_name_reason(name: str) -> str | None:
+    return HOST.invalid_name_reason(name)
 
 
 def install_root() -> Path:

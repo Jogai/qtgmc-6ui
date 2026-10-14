@@ -215,6 +215,22 @@ class WindowsHost:
                     raise
                 time.sleep(0.05 * (attempt + 1))
 
+    def invalid_name_reason(self, name: str) -> str | None:
+        """Windows file-name rules (stdlib ntpath.isreserved: device names such as CON/NUL/COM1
+        also with an extension, trailing dot or space, ':', wildcards, '|' and control
+        characters), plus both separators and the 255-character component limit."""
+        import ntpath
+
+        if not name or name in (".", ".."):
+            return "empty or a special name"
+        if "/" in name or "\\" in name:
+            return "contains a path separator"
+        if len(name) > 255:
+            return "longer than 255 characters"
+        if ntpath.isreserved(name):
+            return "is reserved on Windows (device name, trailing dot or space, or one of : * ? \" < > | or a control character)"
+        return None
+
     def install_root(self) -> Path:
         return Path(os.environ.get("ProgramFiles") or r"C:\Program Files") / APP_ID
 

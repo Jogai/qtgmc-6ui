@@ -182,3 +182,32 @@ def test_replace_file_retries_permission_error(monkeypatch: pytest.MonkeyPatch, 
     monkeypatch.setattr(osdep_windows.os, "replace", lambda s, d: (_ for _ in ()).throw(PermissionError(13, "x")))
     with pytest.raises(PermissionError):
         WindowsHost().replace_file("a", "b")
+
+
+@pytest.mark.parametrize("name", ["CON", "nul.deint", "com1.mkv", "clip:v2", "clip?", "a*b", 'q"x', "a<b", "x|y", "trail.", "trail ",
+                                  "a\\b", "a/b", "", ".", "..", "x" * 256, "tab\tname"])
+def test_windows_rejects_bad_file_names(name: str) -> None:
+    assert WindowsHost().invalid_name_reason(name)
+
+
+@pytest.mark.parametrize("name", ["clip.deint", "Clip 2 (final).mkv", "über.mp4", "x" * 255, "console.mkv", "com10.mkv"])
+def test_windows_accepts_good_file_names(name: str) -> None:
+    assert WindowsHost().invalid_name_reason(name) is None
+
+
+def test_windows_name_rules_reach_jobs_and_profiles(monkeypatch: pytest.MonkeyPatch) -> None:
+    from qtgmc_6ui import jobs, profiles
+    from qtgmc_6ui.errors import UsageError
+    from qtgmc_6ui.models import Profile
+
+    monkeypatch.setattr(osdep, "HOST", WindowsHost())
+    with pytest.raises(UsageError) as e:
+        jobs.format_name("{stem}:v2", "/x/clip.avi")
+    assert "reserved on Windows" in e.value.hint
+    with pytest.raises(UsageError):
+        jobs.format_name("{stem}\\sub", "/x/clip.avi")
+    assert jobs.format_name("{stem}.deint", "/x/clip.avi") == "clip.deint"
+    problems = profiles.validate(Profile(id="con", name="c", extension="mp4"), check_tools=False, check_ffmpeg=False)
+    assert any("cannot be a file name" in p for p in problems)
+    problems = profiles.validate(Profile(id="ok", name="c", extension="mp?"), check_tools=False, check_ffmpeg=False)
+    assert any("bare suffix" in p for p in problems)

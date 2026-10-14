@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .. import osdep
 from ..models import AnalysisResult, ChromaMode, MasterSettings, Preset, RateMode
 from . import ui_state
 
@@ -233,6 +234,9 @@ class SettingsPanel(QScrollArea):
             return "The output name must contain {stem} (the input file name without extension)."
         if "/" in tpl:
             return "The output name must not contain '/'; choose the folder separately."
+        reason = osdep.invalid_name_reason(tpl.replace("{stem}", "x"))
+        if reason:
+            return f"The output name {reason}."
         try:
             tpl.format(stem="x")
         except (KeyError, IndexError, ValueError):

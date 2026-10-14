@@ -204,3 +204,9 @@ def _umask() -> int:
     m = os.umask(0)
     os.umask(m)
     return m
+
+
+def test_invalid_name_reason_posix() -> None:
+    assert osdep.invalid_name_reason("clip:v2 ?.mkv") is None and osdep.invalid_name_reason("CON") is None
+    for bad in ("", ".", "..", "a/b", "nul\0byte"):
+        assert osdep.invalid_name_reason(bad)

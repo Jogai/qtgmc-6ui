@@ -280,8 +280,10 @@ def validate(profile: Profile, *, check_tools: bool = True, check_ffmpeg: bool =
         problems.append("name must not be empty")
     if not profile.container:
         problems.append("container must not be empty")
-    if not profile.extension or "/" in profile.extension or profile.extension.startswith("."):
+    if not profile.extension or profile.extension.startswith(".") or osdep.invalid_name_reason(f"x.{profile.extension}"):
         problems.append(f"extension '{profile.extension}' must be a bare suffix like 'mp4'")
+    elif profile.id and osdep.invalid_name_reason(f"{profile.id}.toml"):
+        problems.append(f"id '{profile.id}' cannot be a file name on this system")
     if not 0 <= v.quality <= 100:
         problems.append("video.quality must be between 0 and 100")
     if not 0 <= v.bitrate_kbps <= 500_000:

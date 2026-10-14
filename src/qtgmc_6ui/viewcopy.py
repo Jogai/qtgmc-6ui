@@ -510,8 +510,9 @@ def view_output_path(input_path: str, profile: Profile, name_template: str, outp
         name = name_template.format(**fields)
     except (KeyError, IndexError, ValueError) as e:
         raise UsageError(f"bad name template {name_template!r}: {e}", "available placeholders: {stem} {name} {profile}") from None
-    if not name or "/" in name or name in (".", ".."):
-        raise UsageError(f"bad name template {name_template!r}: gives {name!r}")
+    reason = osdep.invalid_name_reason(name)
+    if reason:
+        raise UsageError(f"bad name template {name_template!r}: gives {name!r}", f"the file name {reason}")
     if "{profile}" not in name_template:
         name = f"{name}.{profile.id}"
     return str(Path(output_dir) / f"{name}.{profile.extension}")

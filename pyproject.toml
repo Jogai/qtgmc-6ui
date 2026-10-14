@@ -7,7 +7,7 @@ name = "qtgmc-6ui"
 dynamic = ["version"]
 description = "QTGMC deinterlacer for archival video with a Qt6 GUI (Arch Linux)"
 readme = { text = "qtgmc-6UI: QTGMC deinterlacing (VapourSynth) with a PySide6 GUI and a scriptable CLI.", content-type = "text/plain" }
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = "GPL-2.0-only"
 authors = [{ name = "jogai" }]
 # Runtime dependencies.  Packages that Arch provides (vapoursynth, pyside6,
@@ -70,7 +70,7 @@ filterwarnings = ["ignore::DeprecationWarning:vapoursynth"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
