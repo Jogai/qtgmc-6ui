@@ -171,3 +171,14 @@ def test_runstate_cancel_needs_confirmation() -> None:
     st = RunState(cancelling=True)
     st.finish_without_done(-9)  # killed
     assert st.cancel_unconfirmed and not st.cancelled
+
+
+def test_expand_paths_natural_order(tmp_path) -> None:
+    from qtgmc_6ui.gui.queue_model import expand_paths
+
+    for n in ("clip10.avi", "clip2.avi", "clip1.avi", "notes.txt"):
+        (tmp_path / n).write_bytes(b"")
+    (tmp_path / "b").mkdir()
+    (tmp_path / "b" / "x.avi").write_bytes(b"")
+    names = [p.removeprefix(str(tmp_path) + "/") for p in expand_paths([str(tmp_path)])]
+    assert names == ["b/x.avi", "clip1.avi", "clip2.avi", "clip10.avi"]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 from typing import Any
 
@@ -176,4 +177,4 @@ def banner_for(result: CliResult) -> tuple[str, str] | None:
 
 
 def _escape(s: Any) -> str:
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return html.escape(str(s), quote=False)

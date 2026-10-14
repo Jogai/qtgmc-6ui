@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import threading
 import time
@@ -395,7 +396,7 @@ def run_master(
         cmd = master_mod.master_command(job.input, partial, analysis.probe.video.sar, colorimetry, overwrite=True,
                                         audio_tracks=audio_tracks, chroma_location=g.chroma_location,
                                         video_offset_s=timing["video_offset_s"], flac_32bit=flac_32bit)
-        emitter.log("app", "ffmpeg command: " + " ".join(_quote(a) for a in cmd))
+        emitter.log("app", "ffmpeg command: " + shlex.join(cmd))
         emitter.stage("master", stage_offset + 2, stage_total, "deinterlace + encode master (ffv1/flac)")
         enc = _Encoder(cmd, emitter, cancel)
         tracker = ProgressTracker(g.frames_out)
@@ -478,10 +479,6 @@ def run_master(
             worker.join()
         if owned:
             vc.close()
-
-
-def _quote(a: str) -> str:
-    return a if a and all(ch.isalnum() or ch in "-_./:=,+" for ch in a) else "'" + a.replace("'", "'\\''") + "'"
 
 
 def run_job(job: JobSpec, *, emitter: Emitter, cancel: CancelToken) -> JobResult:

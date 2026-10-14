@@ -5,10 +5,19 @@ from __future__ import annotations
 import itertools
 from dataclasses import dataclass, field
 from enum import StrEnum
+from functools import cmp_to_key
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, QPersistentModelIndex, Qt, Signal
+from PySide6.QtCore import (
+    QAbstractTableModel,
+    QCollator,
+    QLocale,
+    QModelIndex,
+    QPersistentModelIndex,
+    Qt,
+    Signal,
+)
 from PySide6.QtGui import QBrush, QColor, QFont
 
 from ..models import AnalysisResult, ContentClass, RecommendedAction
@@ -247,6 +256,20 @@ class QueueModel(QAbstractTableModel):
         return [i for i in self.items if i.status == JobStatus.READY]
 
 
+# The "C" locale ignores numeric mode, so LANG=C falls back to English collation rules.
+_COLLATOR = QCollator(QLocale() if QLocale().name() != "C" else QLocale(QLocale.Language.English))
+_COLLATOR.setNumericMode(True)
+
+
+def _natural_cmp(a: Path, b: Path) -> int:
+    """Natural, locale-aware order per path component ("clip2" before "clip10")."""
+    for x, y in zip(a.parts, b.parts, strict=False):
+        c = _COLLATOR.compare(x, y)
+        if c:
+            return c
+    return len(a.parts) - len(b.parts)
+
+
 def expand_paths(paths: list[str], recursive: bool = True) -> list[str]:
     """Files are kept as given; folders contribute their video files (sorted)."""
     out: list[str] = []
@@ -254,7 +277,8 @@ def expand_paths(paths: list[str], recursive: bool = True) -> list[str]:
         path = Path(p)
         if path.is_dir():
             it = path.rglob("*") if recursive else path.glob("*")
-            out.extend(str(f) for f in sorted(it) if f.is_file() and f.suffix.lower() in VIDEO_EXTENSIONS)
+            rels = [f.relative_to(path) for f in it if f.is_file() and f.suffix.lower() in VIDEO_EXTENSIONS]
+            out.extend(str(path / r) for r in sorted(rels, key=cmp_to_key(_natural_cmp)))
         elif path.is_file():
             out.append(str(path))
     return out

@@ -82,26 +82,16 @@ def _write_png_raw(path: str, width: int, height: int, filtered: bytes) -> int:
 
 
 def _frame_to_filtered(frame: Any) -> tuple[int, int, bytes]:
-    """RGB24 VideoFrame -> (w, h, PNG scanlines with filter byte 0)."""
-    w, h = frame.width, frame.height
-    try:
-        import numpy as np
+    """RGB24 VideoFrame -> (w, h, PNG scanlines with filter byte 0); numpy is a hard dependency."""
+    import numpy as np
 
-        rgb = np.empty((h, 3 * w + 1), dtype=np.uint8)
-        rgb[:, 0] = 0
-        px = rgb[:, 1:].reshape(h, w, 3)
-        for i in range(3):
-            px[:, :, i] = np.asarray(frame[i])
-        return w, h, rgb.tobytes()
-    except ImportError:
-        pass
-    planes = [bytes(frame[i]) for i in range(3)]  # contiguous w*h each (no stride padding)
-    out = bytearray((3 * w + 1) * h)
-    for y in range(h):
-        o = y * (3 * w + 1) + 1
-        for i in range(3):
-            out[o + i : o + 3 * w : 3] = planes[i][y * w : (y + 1) * w]
-    return w, h, bytes(out)
+    w, h = frame.width, frame.height
+    rgb = np.empty((h, 3 * w + 1), dtype=np.uint8)
+    rgb[:, 0] = 0
+    px = rgb[:, 1:].reshape(h, w, 3)
+    for i in range(3):
+        px[:, :, i] = np.asarray(frame[i])
+    return w, h, rgb.tobytes()
 
 
 # --------------------------------------------------------------------------- renderer

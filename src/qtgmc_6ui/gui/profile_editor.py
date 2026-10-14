@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import html
 import re
 import shlex
 
@@ -655,4 +656,4 @@ def _label(name: str, description: str) -> str:
 
 
 def _esc(s: object) -> str:
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return html.escape(str(s), quote=False)

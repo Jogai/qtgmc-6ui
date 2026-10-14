@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 from fractions import Fraction
 
 from PySide6.QtCore import Qt, Signal
@@ -386,4 +387,4 @@ def _sum_after(a: AnalysisResult) -> dict[str, int]:
 
 
 def _esc(s: object) -> str:
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return html.escape(str(s), quote=False)

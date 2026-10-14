@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
@@ -164,4 +166,4 @@ class RunPanel(QWidget):
 
 
 def _esc(s: object) -> str:
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return html.escape(str(s), quote=False)
