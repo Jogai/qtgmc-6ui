@@ -3,7 +3,7 @@
 # Generated blocks are rewritten by packaging/sync-pkgbuild.py; do not edit them by hand.
 
 pkgname=qtgmc-6ui
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc="QTGMC deinterlacer for archival video (VapourSynth) with a Qt6 GUI"
 arch=(x86_64)

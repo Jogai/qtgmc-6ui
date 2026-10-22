@@ -1,6 +1,6 @@
 pkgbase = qtgmc-6ui
 	pkgdesc = QTGMC deinterlacer for archival video (VapourSynth) with a Qt6 GUI
-	pkgver = 0.2.0
+	pkgver = 0.3.0
 	pkgrel = 1
 	url = https://github.com/jogai/qtgmc-6ui
 	arch = x86_64
@@ -63,7 +63,7 @@ pkgbase = qtgmc-6ui
 	noextract = vsjetpack-2.2.6-py3-none-any.whl
 	options = !debug
 	options = !lto
-	source = qtgmc-6ui-0.2.0.tar.gz::https://github.com/jogai/qtgmc-6ui/archive/v0.2.0.tar.gz
+	source = qtgmc-6ui-0.3.0.tar.gz::https://github.com/jogai/qtgmc-6ui/archive/v0.3.0.tar.gz
 	source = akarin-v1.5.0.tar.gz::https://github.com/Jaded-Encoding-Thaumaturgy/akarin-vapoursynth-plugin/archive/refs/tags/v1.5.0.tar.gz
 	source = resize2-0.5.1.tar.gz::https://github.com/Jaded-Encoding-Thaumaturgy/vapoursynth-resize2/archive/refs/tags/0.5.1.tar.gz
 	source = zimg-1ad1895d5ff0bbe69c61243f9996aede713d1b5f.tar.gz::https://github.com/sekrit-twc/zimg/archive/1ad1895d5ff0bbe69c61243f9996aede713d1b5f.tar.gz
