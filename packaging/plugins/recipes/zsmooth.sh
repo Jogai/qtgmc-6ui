@@ -2,7 +2,7 @@
 . "$HERE/recipes/zig-common.sh"
 
 recipe_build() {
-    zig_seed_cache zsmooth
+    zig_setup zsmooth
     zig_build
 }
 

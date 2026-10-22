@@ -11,6 +11,7 @@
   manifest.py makedepends [SET...]  build-time Arch packages, one per line (sorted, unique)
   manifest.py get COMPONENT KEY     one field (lists joined by spaces)
   manifest.py zighashes COMPONENT   TSV lines: filename zig_hash
+  manifest.py toolchain COMPONENT   TSV lines: filename version (pinned build toolchains)
   manifest.py table [SET...]        JSON list for build-info (name namespace identifier version
                                     file required origin), in load order
 
@@ -93,6 +94,11 @@ def main(argv: list[str]) -> int:
         for s in c["sources"]:
             if "zig_hash" in s:
                 print(f"{s['filename']}\t{s['zig_hash']}")
+    elif cmd == "toolchain":
+        (c,) = select(data, args[:1])
+        for s in c["sources"]:
+            if "toolchain" in s:
+                print(f"{s['filename']}\t{s['toolchain']}")
     elif cmd == "table":
         rows = [
             {

@@ -33,8 +33,12 @@ def test_manifest_consistent() -> None:
     filenames: dict[str, str] = {}
     for c in MANIFEST["components"]:
         assert (PLUGINS / "recipes" / f"{c['name']}.sh").is_file(), c["name"]
-        for key in ("version", "tag", "license", "license_files", "namespace", "identifier", "files", "depends", "makedepends"):
+        for key in ("version", "tag", "license", "license_files", "namespace", "identifier", "files", "depends"):
             assert c[key], (c["name"], key)
+        assert isinstance(c["makedepends"], list)  # empty for the zig recipes (pinned toolchain)
+        if "zig" in c["build_system"]:
+            assert "zig" not in c["makedepends"]  # Arch's zig moves on; see recipes/zig-common.sh
+            assert [s for s in c["sources"] if s.get("toolchain")], c["name"]
         assert c["files"][0].endswith(".so")
         for s in c["sources"] + c.get("python_wheels", []):
             assert re.fullmatch(r"[0-9a-f]{64}", s["sha256"]), s["filename"]

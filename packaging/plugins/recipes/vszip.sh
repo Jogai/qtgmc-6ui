@@ -2,7 +2,7 @@
 . "$HERE/recipes/zig-common.sh"
 
 recipe_build() {
-    zig_seed_cache vszip
+    zig_setup vszip
     zig_build
 }
 

@@ -146,8 +146,8 @@
       "identifier": "com.adub.zsmooth",
       "files": ["libzsmooth.so"],
       "depends": ["glibc"],
-      "makedepends": ["zig"],
-      "build_system": "zig build, offline: every dependency tarball is placed in a private zig global cache with 'zig fetch' and checked against the hash in build.zig.zon",
+      "makedepends": [],
+      "build_system": "zig build with the pinned Zig 0.16.0 release toolchain (not Arch's zig), offline: every dependency tarball is placed in a private zig global cache with 'zig fetch' and checked against the hash in build.zig.zon",
       "sources": [
         {
           "filename": "zsmooth-0.20.0.tar.gz",
@@ -177,9 +177,16 @@
           "role": "transitive zig dependency: FFTW sources, compiled statically into libzsmooth.so",
           "zig_hash": "N-V-__8AAJCaEgGHVjSvtXEujGF0v3EBM4ymRUQt_zk_DoWo",
           "license": "GPL-2.0-or-later"
+        },
+        {
+          "filename": "zig-x86_64-linux-0.16.0.tar.xz",
+          "url": "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz",
+          "sha256": "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00",
+          "role": "build toolchain only, not shipped: official static Zig 0.16.0 release (sha256 from ziglang.org/download/index.json)",
+          "toolchain": "0.16.0"
         }
       ],
-      "notes": "Needed for LosslessMode.POSTSMOOTH (anti-comb repair/remove_grain) and median_blur. Built with Arch's zig 0.16.0 (build.zig.zon minimum 0.15.2). Target x86_64-linux-gnu, -Dcpu=x86_64 by default (x86_64_v3 / native with QTGMC6UI_MARCH); zig does not use CFLAGS. FFTW (GPL-2.0-or-later) is linked statically, so the shipped binary is GPL-2.0-or-later as a whole."
+      "notes": "Needed for LosslessMode.POSTSMOOTH (anti-comb repair/remove_grain) and median_blur. Built with a pinned Zig 0.16.0 toolchain tarball, not Arch's zig: Zig 0.17 (Arch extra/zig since 2026-10-20) removed @cImport, the ReleaseFast optimize-mode names and the --global-cache-dir option of zig fetch, so zsmooth 0.20.0 and its zig dependencies do not compile with it, and Arch has no versioned zig package. Target x86_64-linux-gnu, -Dcpu=x86_64 by default (x86_64_v3 / native with QTGMC6UI_MARCH); zig does not use CFLAGS. FFTW (GPL-2.0-or-later) is linked statically, so the shipped binary is GPL-2.0-or-later as a whole."
     },
     {
       "name": "dfttest2",
@@ -251,8 +258,8 @@
       "identifier": "com.julek.vszip",
       "files": ["libvszip.so"],
       "depends": ["glibc"],
-      "makedepends": ["zig"],
-      "build_system": "zig build, offline like zsmooth",
+      "makedepends": [],
+      "build_system": "zig build with the pinned Zig 0.16.0 toolchain, offline like zsmooth",
       "sources": [
         {
           "filename": "vszip-22.1.0.tar.gz",
@@ -274,6 +281,13 @@
           "role": "zig dependency 'zigimg'",
           "zig_hash": "zigimg-0.1.0-8_eo2sGbFwCrsBjkTTP-kinCH62m5vmYDHQnQcngFuwh",
           "license": "MIT"
+        },
+        {
+          "filename": "zig-x86_64-linux-0.16.0.tar.xz",
+          "url": "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz",
+          "sha256": "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00",
+          "role": "build toolchain only, not shipped: official static Zig 0.16.0 release (sha256 from ziglang.org/download/index.json)",
+          "toolchain": "0.16.0"
         }
       ],
       "notes": "Extra, not shipped by default: declared dependency of vsjetpack but verified unused by QTGMC with our settings. Recipe kept for later features."
