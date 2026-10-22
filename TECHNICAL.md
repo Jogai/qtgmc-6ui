@@ -22,7 +22,7 @@ Runtime `depends` (all from official repos; versions are those seen on 2026-10-0
 | fftw, zimg, llvm22-libs, libgcc, libstdc++, glibc | runtime libraries of the bundled plugins |
 | hicolor-icon-theme, bash | icon directory; bash as listed in the PKGBUILD |
 
-Build-only (`makedepends`, official repos): `uv`, `python-build`, `python-hatchling`, `meson`, `ninja`, `cmake`, `make`, `patch`, `zig`, `llvm22`.
+Build-only (`makedepends`, official repos): `uv`, `python-build`, `python-hatchling`, `meson`, `ninja`, `cmake`, `make`, `patch`, `llvm22`. Zig is not one of them: zsmooth is built with the pinned official Zig 0.16.0 release tarball, a checksummed `source=()` entry (see below).
 
 Bundled native VapourSynth plugins (built in `build()`, installed to `/usr/lib/qtgmc-6ui/plugins`). In the official repos only mvtools, bestsource and deblock exist; vsjetpack 2.x needs none of mvtools (it uses mvutensils), so none of the others are usable here.
 
@@ -242,7 +242,7 @@ Single rate, the `faster`, `slower` and `placebo` presets, 4:1:1 and 4:2:2 10-bi
 | meson, ninja | akarin, resize2, mvutensils (ninja also for dfttest2) |
 | make | znedi3 (upstream Makefile) |
 | cmake | dfttest2 (the CMake project of the PyPI sdist) |
-| zig | zsmooth, offline from a private Zig cache |
+| Zig 0.16.0 (ziglang.org release tarball in `source=()`, not Arch's `zig`) | zsmooth, offline from a private Zig cache. Arch's zig 0.17 cannot compile zsmooth 0.20.0 and its Zig dependencies (removed `@cImport`, renamed optimize modes), and the repos carry no older zig |
 | patch | the zimg patch that resize2 requires |
 | llvm22 | compiling akarin (its meson file accepts LLVM 20 to 22 only) |
 | vapoursynth, python (runtime `depends`, also used by the build) | VapourSynth headers and include path for every plugin build |
