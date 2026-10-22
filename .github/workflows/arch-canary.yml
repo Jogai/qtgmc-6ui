@@ -1,0 +1,92 @@
+name: Arch canary
+
+# Weekly build and smoke test of master against current Arch, so a break (new toolchain, removed
+# package, soname bump) shows up within a week and not when a user builds the AUR package.
+# A failure opens (or updates) an issue; a later success closes it. Details: packaging/aur/PKGBUILD.md.
+on:
+  schedule:
+    - cron: "0 0 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arch-canary
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and smoke test (current Arch)
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    timeout-minutes: 120
+    steps:
+      - name: Prepare Arch
+        run: |
+          # pacman's download sandbox needs kernel features that container runtimes block
+          sed -i '/^\[options\]/a DisableSandboxFilesystem\nDisableSandboxSyscalls' /etc/pacman.conf
+          sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
+          pacman -Syu --noconfirm --noprogressbar git sudo python namcap
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+
+      - uses: actions/checkout@v4
+
+      - name: Build the package from this checkout
+        run: |
+          chown -R builder: "$GITHUB_WORKSPACE"
+          sudo -u builder -H env "WS=$GITHUB_WORKSPACE" bash -euo pipefail -c '
+            cd "$WS"
+            bash packaging/test-package.sh --no-chroot --committed --steps build --builddir /home/builder/build
+          '
+
+      - name: Record the toolchain
+        if: always()
+        run: |
+          {
+            echo '### Arch toolchain'
+            echo '```'
+            pacman -Q python vapoursynth ffmpeg pyside6 llvm22 uv meson cmake gcc 2>&1 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: namcap
+        run: |
+          cd /home/builder/build
+          out=$(namcap -e pydepends PKGBUILD ./*.pkg.tar.* || true)
+          echo "$out"
+          # warnings are known and listed in PKGBUILD.md; errors fail the build
+          ! grep -q ' E: ' <<<"$out"
+
+      - name: Install and smoke test
+        run: |
+          pacman -U --noconfirm --noprogressbar /home/builder/build/*.pkg.tar.*
+          sudo -u builder -H bash "$GITHUB_WORKSPACE/packaging/ci-smoke.sh"
+
+  report:
+    name: Open or close the canary issue
+    needs: build
+    if: always() && needs.build.result != 'cancelled' && needs.build.result != 'skipped'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open, update or close
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ needs.build.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Weekly Arch canary build failed"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ "$RESULT" = failure ]; then
+            body="The weekly build of master against current Arch failed: $RUN_URL"
+            if [ -n "$open" ]; then
+              gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "Still failing: $RUN_URL"
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+            fi
+          elif [ -n "$open" ]; then
+            gh issue close "$open" --repo "$GITHUB_REPOSITORY" --comment "Build is green again: $RUN_URL"
+          fi
