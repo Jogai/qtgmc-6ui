@@ -117,5 +117,5 @@ def test_no_master_reference(reference_clip: Path, tmp_path: Path) -> None:
     assert evs[0].data["outputs"] == [str(out / f"{reference_clip.stem}.deint.mp4-h264-aac.mp4")]
     res = [e for e in evs if e.ev == "result"][0].data["data"]
     assert [(o["kind"], o["frames"]) for o in res["outputs"]] == [("view", 548)]
-    assert sorted(x.name for x in out.iterdir()) == ["test_input.deint.mp4-h264-aac.mp4"]
+    assert sorted(x.name for x in out.iterdir()) == [f"{reference_clip.stem}.deint.mp4-h264-aac.mp4"]
     assert _sha(reference_clip) == before

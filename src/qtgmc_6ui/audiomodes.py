@@ -100,6 +100,7 @@ class AudioPlan:
 
     @property
     def lossless(self) -> bool:
+        """Every track decodes bit-identically (False also for float -> FLAC, which the mode table calls lossless)."""
         return all(t.lossless for t in self.tracks)
 
     def ffmpeg_args(self) -> list[str]:
@@ -218,6 +219,7 @@ def plan(mode: AudioMode | str, audio: list[AudioProbe], *, probe_mux: Any = "de
                                    "(lossless) instead",
                                    "choose --audio flac/pcm to silence this, or remux the source to a Matroska-friendly codec"))
                 if kind == "float":
+                    t.lossless = False  # 24-bit integer FLAC is not bit-identical to float samples
                     p.warnings.append(("audio", f"audio stream {a.index} ({a.codec}) is floating point; FLAC stores it as 24-bit integer", ""))
                 if kind == "int" and bits > 24:
                     p.strict_experimental = True
@@ -225,8 +227,9 @@ def plan(mode: AudioMode | str, audio: list[AudioProbe], *, probe_mux: Any = "de
             t.codec = t.expect = _pcm_codec(a)
             t.lossless = True
         elif mode == AudioMode.FLAC:
-            t.codec, t.expect, t.lossless = "flac", "flac", True
+            t.codec, t.expect, t.lossless = "flac", "flac", kind != "float"
             if kind == "float":
+                t.note = "floating point stored as 24-bit integer"
                 p.warnings.append(("audio", f"audio stream {a.index} ({a.codec}) is floating point; FLAC stores it as 24-bit integer", ""))
             if kind == "int" and bits > 24:
                 p.strict_experimental = True
