@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import osdep
-from ..models import AnalysisResult, ChromaMode, MasterSettings, Preset, RateMode
+from ..models import AnalysisResult, AudioMode, ChromaMode, MasterSettings, Preset, RateMode
 from . import ui_state
 
 PRESET_LABELS = {
@@ -46,6 +46,9 @@ DENOISE_WARNING = (
     "original pixels are no longer preserved in the master. Needs the optional dfttest2 plugin."
 )
 LOSSLESS_OFF_WARNING = "Without lossless mode, synthesised lines replace source lines: the master is no longer field-exact."
+AUDIO_LOSSY_WARNING = (
+    "This audio mode is lossy and alters the master: the audio is no longer the original."
+)
 SOURCE_MATCH_OFF_NOTE = "Lossless still holds without source match; source match only improves the synthesised lines."
 
 
@@ -85,7 +88,7 @@ class SettingsPanel(QScrollArea):
         lay.setSpacing(10)
 
         # --- deinterlacing
-        box = QGroupBox("Archival master (QTGMC → FFV1 + FLAC, lossless)")
+        box = QGroupBox("Archival master (QTGMC → FFV1 lossless video)")
         form = QFormLayout(box)
         form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         order_note = QLabel("Detected per file; override it in the <i>Analysis</i> tab.")
@@ -136,6 +139,24 @@ class SettingsPanel(QScrollArea):
         dv.addLayout(dh)
         dv.addWidget(self.denoise_warning)
         form.addRow("Denoise:", dv)
+
+        # audio of the master: modes, labels and tooltips come from `audio-modes --json`
+        self.audio_combo = QComboBox()
+        self.audio_combo.setObjectName("audioCombo")
+        self.audio_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.audio_warning = warning_label()
+        self.audio_warning.setText("<b>Warning:</b> " + AUDIO_LOSSY_WARNING)
+        self.audio_warning.hide()
+        av = QVBoxLayout()
+        ah = QHBoxLayout()
+        ah.addWidget(self.audio_combo)
+        ah.addStretch(1)
+        av.addLayout(ah)
+        av.addWidget(self.audio_warning)
+        self.audio_label = QLabel("Audio:")
+        form.addRow(self.audio_label, av)
+        self._audio_modes: list[dict] = []
+        self._set_audio_row_visible(False)  # until the backend lists the modes
         lay.addWidget(box)
 
         # --- advanced
@@ -146,7 +167,7 @@ class SettingsPanel(QScrollArea):
         self.chroma.addItem("Keep 4:2:2 intermediate (4:1:1 sources only)", ChromaMode.YUV422.value)
         aform.addRow("Chroma:", self.chroma)
         self.threads = QSpinBox(minimum=0, maximum=256, specialValueText="all cores")
-        self.cache_mb = QSpinBox(minimum=0, maximum=262144, singleStep=512, specialValueText="default by resolution")
+        self.cache_mb = QSpinBox(minimum=0, maximum=262144, singleStep=512, specialValueText="automatic (by resolution)")
         self.cache_mb.setSuffix(" MB")
         aform.addRow("Threads:", self.threads)
         aform.addRow("Frame cache:", self.cache_mb)
@@ -174,7 +195,7 @@ class SettingsPanel(QScrollArea):
         nv.addWidget(self.name_template)
         nv.addWidget(self.name_preview)
         oform.addRow("Name:", nv)
-        self.keep_master = QCheckBox("Keep the archival master (FFV1 + FLAC)")
+        self.keep_master = QCheckBox("Keep the archival master (FFV1)")
         self.keep_master.setObjectName("keepMasterCheck")
         self.keep_master.setChecked(True)  # on at every start: the master is the archival result
         self.keep_master_hint = WrapLabel()
@@ -194,7 +215,7 @@ class SettingsPanel(QScrollArea):
         self._load()
         for sig in (
             self.rate_group.buttonToggled, self.preset_combo.currentIndexChanged, self.source_match.toggled,
-            self.lossless.toggled, self.denoise.toggled, self.denoise_sigma.valueChanged, self.chroma.currentIndexChanged,
+            self.lossless.toggled, self.denoise.toggled, self.audio_combo.currentIndexChanged, self.denoise_sigma.valueChanged, self.chroma.currentIndexChanged,
             self.threads.valueChanged, self.cache_mb.valueChanged, self.out_dir.textChanged,
             self.name_template.textChanged, self.overwrite.toggled, self.keep_master.toggled,
         ):
@@ -204,7 +225,7 @@ class SettingsPanel(QScrollArea):
     # ------------------------------------------------------------------ values
     def master_settings(self) -> MasterSettings:
         preset = self.preset_combo.currentData()
-        return MasterSettings(
+        ms = MasterSettings(
             rate=RateMode.SINGLE if self.rate_single.isChecked() else RateMode.DOUBLE,
             preset=Preset(preset) if preset else None,
             source_match=self.source_match.isChecked(),
@@ -214,6 +235,42 @@ class SettingsPanel(QScrollArea):
             threads=self.threads.value(),
             cache_mb=self.cache_mb.value(),
         )
+        if (mode := self.audio_mode()) is not None:
+            try:
+                ms.audio = AudioMode(mode)
+            except ValueError:  # a mode added by a newer backend: pass the id through unchanged
+                ms.audio = mode
+        return ms
+
+    # ------------------------------------------------------------------ audio
+    def set_audio_modes(self, modes: list[dict] | None) -> None:
+        """Fill the audio selector from the backend (None/empty: older backend, row hidden)."""
+        modes = [m for m in modes or [] if isinstance(m, dict) and m.get("id")]
+        self._audio_modes = modes
+        self.audio_combo.blockSignals(True)
+        self.audio_combo.clear()
+        for m in modes:
+            self.audio_combo.addItem(str(m.get("label") or m["id"]), m["id"])
+            if m.get("tooltip"):
+                self.audio_combo.setItemData(self.audio_combo.count() - 1, str(m["tooltip"]), Qt.ItemDataRole.ToolTipRole)
+        idx = self.audio_combo.findData(ui_state.get_str("master/audio"))
+        self.audio_combo.setCurrentIndex(max(idx, 0))
+        self.audio_combo.blockSignals(False)
+        self._set_audio_row_visible(bool(modes))
+        self._update_notes()
+
+    def _set_audio_row_visible(self, on: bool) -> None:
+        self.audio_label.setVisible(on)
+        self.audio_combo.setVisible(on)
+        if not on:
+            self.audio_warning.hide()
+
+    def audio_mode(self) -> str | None:
+        return self.audio_combo.currentData() if self._audio_modes else None
+
+    def audio_mode_info(self) -> dict | None:
+        mode = self.audio_mode()
+        return next((m for m in self._audio_modes if m["id"] == mode), None)
 
     def keeps_master(self) -> bool:
         return self.keep_master.isChecked()
@@ -262,6 +319,10 @@ class SettingsPanel(QScrollArea):
         self.changed.emit()
 
     def _update_notes(self) -> None:
+        info = self.audio_mode_info()
+        lossy = bool(info and (info.get("lossy") or info.get("group") == "lossy"))
+        self.audio_warning.setVisible(lossy)
+        self.audio_combo.setToolTip(str(info.get("tooltip") or "") if info else "")
         if self.keep_master.isChecked():
             self.keep_master_hint.setStyleSheet("color: palette(placeholder-text);")
             self.keep_master_hint.setText(
@@ -297,7 +358,7 @@ class SettingsPanel(QScrollArea):
             v = a.probe.video
             hint = f"Auto for the selected file ({v.width}×{v.height}): {a.preset_default}. " + hint
             if v.height > 576:
-                hint += " HD is slow and memory-hungry: start with the default and go higher only if needed."
+                hint += " HD is slow and memory-hungry: start with the automatic preset and go higher only if needed."
         self.preset_hint.setText(hint)
         stem = Path(a.input).stem if a else "clip"
         try:
@@ -327,5 +388,7 @@ class SettingsPanel(QScrollArea):
         ui_state.put("master/source_match", ms.source_match)
         ui_state.put("master/lossless", ms.lossless)
         ui_state.put("master/chroma", ms.chroma.value)
+        if self.audio_mode() is not None:
+            ui_state.put("master/audio", self.audio_mode())
         ui_state.put("output/dir", self.output_dir())
         ui_state.put("output/name", self.name_template_text())

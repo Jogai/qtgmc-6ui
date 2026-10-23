@@ -90,6 +90,7 @@ class JobItem:
     outputs: list[dict[str, Any]] = field(default_factory=list)
     cancelling: bool = False
     keep_master: bool = True  # of the last run
+    summary: str = ""  # master settings of the last run (tooltip)
 
     @property
     def name(self) -> str:
@@ -185,7 +186,7 @@ class QueueModel(QAbstractTableModel):
             return item.status_text()
         if role == Qt.ItemDataRole.ToolTipRole:
             if col == self.COL_FILE:
-                return item.path
+                return item.path + (f"\n{item.summary}" if item.summary else "")
             if col == self.COL_STATUS:
                 return item.decision_needed() or (item.error or {}).get("message") or item.status_text()
             if item.field_order_override and item.analysis:

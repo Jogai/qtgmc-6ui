@@ -39,6 +39,7 @@ class MainWindow(QMainWindow):
         self.controller = QueueController(self.model, self.build_spec, self)
         self.doctor_result: CliResult | None = None
         self._doctor_call: CliCall | None = None
+        self._audio_call: CliCall | None = None
         self._closing = False
         self._last_doctor_line = ""
 
@@ -147,6 +148,20 @@ class MainWindow(QMainWindow):
         self._doctor_call.finished.connect(self._on_doctor)
         self._doctor_call.start()
         self.catalog.load_profiles()
+        self.load_audio_modes()
+
+    def load_audio_modes(self) -> None:
+        """``audio-modes --json`` fills the master audio selector; an older backend hides it."""
+        self._audio_call = CliCall(["audio-modes", "--json"], self)
+        self._audio_call.finished.connect(self._on_audio_modes)
+        self._audio_call.start()
+
+    def _on_audio_modes(self, result: CliResult) -> None:
+        data = result.data
+        if isinstance(data, dict):
+            data = data.get("modes")
+        self.settings_panel.set_audio_modes(data if result.ok and isinstance(data, list) else None)
+        self.preview.set_master(self.settings_panel.master_settings())
 
     # ------------------------------------------------------------------ doctor
     def _on_doctor(self, result: CliResult) -> None:
@@ -203,6 +218,7 @@ class MainWindow(QMainWindow):
             master.field_order = FieldOrderChoice(item.field_order_override)
         elif item.force and item.effective_field_order():
             master.field_order = FieldOrderChoice(item.effective_field_order())
+        item.summary = self.master_summary()
         return JobSpec(
             input=item.path,
             output_dir=self.settings_panel.output_dir(),
@@ -214,6 +230,20 @@ class MainWindow(QMainWindow):
             overwrite=self.settings_panel.overwrite.isChecked(),
             analysis=item.analysis,
         )
+
+    def master_summary(self) -> str:
+        """One line with the master settings of a job (shown in the run panel and queue tooltip)."""
+        sp = self.settings_panel
+        ms = sp.master_settings()
+        parts = [f"{ms.rate.value} rate", f"preset {ms.preset.value if ms.preset else 'auto'}",
+                 "lossless" if ms.lossless else "not lossless"]
+        if ms.denoise_sigma:
+            parts.append(f"denoise {ms.denoise_sigma:g}")
+        if (info := sp.audio_mode_info()) is not None:
+            parts.append(f"audio: {info.get('label') or info['id']}")
+        if not sp.keeps_master():
+            parts.append("no master kept")
+        return "Master: " + ", ".join(parts)
 
     def start_queue(self) -> None:
         if self.controller.running:

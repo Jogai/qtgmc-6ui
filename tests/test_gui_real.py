@@ -108,3 +108,15 @@ def test_real_no_master_job(qtbot, window, reference_clip, tmp_path) -> None:
     names = sorted(p.name for p in out.iterdir())
     assert names == [f"{reference_clip.stem}.deint.mp4-h264-aac.mp4"], names  # no master, no hidden temp
     assert [o["kind"] for o in item.outputs] == ["view"]
+
+
+def test_real_audio_modes(qtbot, window) -> None:
+    window.load_audio_modes()
+    qtbot.waitUntil(lambda: window._audio_call is not None and window._audio_call.proc.state().name == "NotRunning",
+                    timeout=TIMEOUT)
+    qtbot.waitUntil(lambda: window.settings_panel.audio_combo.count() > 0, timeout=10_000)
+    combo = window.settings_panel.audio_combo
+    assert [combo.itemData(i) for i in range(combo.count())] == ["copy", "pcm", "flac", "alac", "aac", "opus"]
+    assert combo.currentIndex() == 0
+    labels = [combo.itemText(i).lower() for i in range(combo.count())]
+    assert not any(w in t for t in labels for w in ("best", "worst", "default"))

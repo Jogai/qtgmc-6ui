@@ -121,7 +121,7 @@ class ComboWithReasons(QComboBox):
         return sum(1 for r in range(self._model.rowCount()) if not self.is_enabled_row(r))
 
 
-def editable_combo(choices: list[str], value: str, empty_label: str = "(default)") -> QComboBox:
+def editable_combo(choices: list[str], value: str, empty_label: str = "(automatic)") -> QComboBox:
     cb = QComboBox()
     cb.setEditable(True)
     cb.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
@@ -129,7 +129,7 @@ def editable_combo(choices: list[str], value: str, empty_label: str = "(default)
     return cb
 
 
-def set_choices(cb: QComboBox, choices: list[str], value: str, empty_label: str = "(default)") -> None:
+def set_choices(cb: QComboBox, choices: list[str], value: str, empty_label: str = "(automatic)") -> None:
     cb.blockSignals(True)
     cb.clear()
     cb.addItem("", "")
@@ -290,7 +290,7 @@ class ProfileEditor(QDialog):
         af.addRow("Encoder:", ae)
         self.abitrate_spin = QSpinBox(minimum=0, maximum=1536, singleStep=16, value=p.audio.bitrate_kbps)
         self.abitrate_spin.setSuffix(" kbit/s")
-        self.abitrate_spin.setSpecialValueText("encoder default")
+        self.abitrate_spin.setSpecialValueText("set by the encoder")
         af.addRow("Bitrate:", self.abitrate_spin)
         self.srate_combo = QComboBox()
         for sr in SAMPLE_RATES:
@@ -540,7 +540,7 @@ class ProfileEditor(QDialog):
             (self.tune_combo, "tune", self.tune_combo.currentText() or v.tune),
             (self.vprofile_combo, "profile", self.vprofile_combo.currentText() or v.profile),
         ):
-            set_choices(combo, choices(name), val, "(none)" if name == "tune" else "(encoder default)")
+            set_choices(combo, choices(name), val, "(none)" if name == "tune" else "(set by the encoder)")
             combo.setEnabled(is_cli or name in has)
             combo.setToolTip("" if combo.isEnabled() else f"{ff} has no '{name}' option")
         pix = list(info.pix_fmts) if info else []

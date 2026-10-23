@@ -68,6 +68,15 @@ class RunPanel(QWidget):
         el.addWidget(dismiss, 0, Qt.AlignmentFlag.AlignTop)
         self.error_frame.hide()
 
+        self.summary_label = QLabel()
+        self.summary_label.setObjectName("jobSummary")
+        self.summary_label.setStyleSheet("color: palette(placeholder-text);")
+        self.summary_label.hide()
+        self.warning_label = QLabel(wordWrap=True, textFormat=Qt.TextFormat.RichText)
+        self.warning_label.setObjectName("runWarnings")
+        self.warning_label.setStyleSheet("color: #b26a00;")
+        self.warning_label.hide()
+
         self.log = LogPane()
 
         top = QHBoxLayout()
@@ -81,6 +90,8 @@ class RunPanel(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.addLayout(top)
         lay.addLayout(info)
+        lay.addWidget(self.summary_label)
+        lay.addWidget(self.warning_label)
         lay.addWidget(self.error_frame)
         lay.addWidget(self.log, 1)
 
@@ -94,8 +105,12 @@ class RunPanel(QWidget):
         self.cancel_button.setEnabled(running)
         if running:
             self.error_frame.hide()
+            self.warning_label.hide()
 
     def update_state(self, item: JobItem, state: RunState, index: int, total: int) -> None:
+        self.summary_label.setText(item.summary)
+        self.summary_label.setVisible(bool(item.summary))
+        self.show_warnings(state.warnings)
         frac = item.progress if item.progress is not None else state.overall_fraction
         if frac is None:
             self.progress.setRange(0, 0)  # busy indicator until the first frame count
@@ -141,6 +156,15 @@ class RunPanel(QWidget):
         else:
             self.progress.setFormat("Failed")
             self.show_error(state.error or {}, item.name)
+
+    def show_warnings(self, warnings: list[dict]) -> None:
+        """Coded backend warnings (e.g. audio_lossy) with the backend's hint."""
+        lines = []
+        for w in warnings:
+            hint = f" — {_esc(w['hint'])}" if w.get("hint") else ""
+            lines.append(f"<b>Warning:</b> {_esc(w.get('message') or w.get('code'))}{hint}")
+        self.warning_label.setText("<br>".join(dict.fromkeys(lines)))
+        self.warning_label.setVisible(bool(lines))
 
     def show_error(self, err: dict, name: str = "") -> None:
         msg = err.get("message") or "The job failed."

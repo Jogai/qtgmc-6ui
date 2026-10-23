@@ -30,16 +30,16 @@ IVTC_TEXT = (
     "This material is <b>telecined</b> (progressive film with 3:2 pulldown), not truly interlaced. "
     "It needs <b>inverse telecine (IVTC)</b>, which qtgmc-6UI does not do: use a dedicated tool "
     "(for example VapourSynth VIVTC / fieldmatch + decimate, or FFmpeg's <tt>fieldmatch,decimate</tt>). "
-    "Deinterlacing it with QTGMC gives inferior results, so this file is not processed by default."
+    "Deinterlacing it with QTGMC gives inferior results, so this file is not processed unless you override this below."
 )
 MIXED_TEXT = (
     "This file is <b>mixed</b>: parts are telecined film and parts are truly interlaced. The telecined "
     "parts need <b>inverse telecine (IVTC)</b> with another tool; QTGMC would treat them as video and "
-    "lose quality. This file is not processed by default."
+    "lose quality. This file is not processed unless you override this below."
 )
 PROGRESSIVE_TEXT = (
     "No interlacing was found: this looks <b>progressive</b>. Deinterlacing a progressive source only "
-    "costs time and can soften the image, so it is skipped by default."
+    "costs time and can soften the image, so it is skipped unless you override this below."
 )
 UNDETERMINED_TEXT = (
     "The field order could not be determined reliably (static or very clean content, or conflicting "
@@ -302,7 +302,7 @@ class AnalysisPanel(QScrollArea):
             row(f"Audio {i}", f"{au.codec} {au.sample_rate} Hz, {au.channel_layout or au.channels}{lang}")
         out_fps = fmt_fps(a.fps_out_double) if a.fps_out_double else "–"
         row("Output (double rate)", f"{a.frames_out_double or '–'} frames at {out_fps}")
-        row("Default preset", str(a.preset_default))
+        row("Automatic preset", str(a.preset_default))
 
     def _render_idet(self, a: AnalysisResult) -> None:
         g = self.idet_grid

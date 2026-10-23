@@ -14,6 +14,8 @@ Run as ``python tests/fake_backend.py <subcommand> ...``; the GUI uses it when
   FAKE_QTGMC_CANCEL_DELAY  seconds the "in-flight frame" takes before a cancel is honoured
   FAKE_QTGMC_UNPROBED  container whose verdicts are not cached (``--probe`` tests them)
   FAKE_QTGMC_SERVE     broken -> preview-serve exits at once (GUI falls back to preview-frame)
+  FAKE_QTGMC_NO_AUDIO_MODES  1 -> ``audio-modes`` is unknown (backend older than the audio selector)
+  FAKE_QTGMC_AUDIO_FAIL      1 -> run-job fails with audio_mode_unsupported for a non-copy mode
 """
 
 from __future__ import annotations
@@ -163,6 +165,13 @@ def cmd_analyze(args, em: Emitter | None) -> int:
 
 
 # --------------------------------------------------------------------------- jobs
+def _audio_error(audio: str) -> QtgmcError:
+    e = QtgmcError(ErrorCode.USAGE, f"audio mode {audio!r} cannot be used with this source",
+                   "choose another audio mode in the master settings")
+    e.code = "audio_mode_unsupported"  # coded error as the real backend emits it
+    return e
+
+
 def cmd_run_job(args, em: Emitter) -> int:
     _watch_cancel()
     text = sys.stdin.read() if args.job == "-" else Path(args.job).read_text(encoding="utf-8")
@@ -187,7 +196,14 @@ def cmd_run_job(args, em: Emitter) -> int:
         master = out_dir / f".{stem}.nomaster.{os.getpid()}.tmp.mkv"
     views = [(v.profile, out_dir / f"{stem}.{v.profile}.mp4") for v in job.views]
     planned = ([str(master)] if job.keep_master else []) + [str(p) for _, p in views]
+    audio = json.loads(text).get("master", {}).get("audio") or "copy"
+    mode = next((a for a in AUDIO_MODES if a["id"] == audio), None)
+    if mode is None or (audio != "copy" and os.environ.get("FAKE_QTGMC_AUDIO_FAIL") == "1"):
+        raise _audio_error(audio)
     em.start("run-job", job.input, planned)
+    if mode["lossy"]:
+        em.warning("audio_lossy", f"the master audio is encoded as {mode['label']}: it is no longer the original",
+                   "choose a lossless audio mode to keep the original audio")
     stages = [("setup", "", None)] + [("master", "", master)] + [("view", pid, p) for pid, p in views]
     frames = (analysis.probe.video.nb_frames or 274) * (2 if job.master.rate == m.RateMode.DOUBLE else 1)
     delay = float(os.environ.get("FAKE_QTGMC_DELAY", "0.002"))
@@ -516,10 +532,39 @@ def cmd_version(args, em) -> int:  # noqa: ARG001
     return 0
 
 
+AUDIO_MODES = [
+    {"id": "copy", "label": "Copy source audio", "group": "lossless", "lossy": False,
+     "tooltip": "Audio streams are copied unchanged from the original file."},
+    {"id": "pcm", "label": "PCM (uncompressed)", "group": "lossless", "lossy": False,
+     "tooltip": "Uncompressed PCM at the source bit depth."},
+    {"id": "flac", "label": "FLAC (lossless)", "group": "lossless", "lossy": False,
+     "tooltip": "Lossless compression, bit-identical when decoded."},
+    {"id": "alac", "label": "ALAC (lossless)", "group": "lossless", "lossy": False,
+     "tooltip": "Apple lossless compression."},
+    {"id": "aac", "label": "AAC (lossy)", "group": "lossy", "lossy": True,
+     "tooltip": "Lossy AAC; smaller, but no longer the original audio."},
+    {"id": "opus", "label": "Opus (lossy)", "group": "lossy", "lossy": True,
+     "tooltip": "Lossy Opus; smaller, but no longer the original audio."},
+]
+
+
+def cmd_audio_modes(argv: list[str]) -> int:
+    if os.environ.get("FAKE_QTGMC_NO_AUDIO_MODES") == "1":
+        print("usage: qtgmc-6ui ...\nqtgmc-6ui: error: argument command: invalid choice: 'audio-modes'", file=sys.stderr)
+        if "--json" in argv:
+            print(json.dumps({"error": QtgmcError(ErrorCode.USAGE, "invalid command line").to_dict()}))
+        return 2
+    print(json.dumps(AUDIO_MODES, ensure_ascii=False))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     from qtgmc_6ui.cli import build_parser
 
     _log_argv()
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "audio-modes":
+        return cmd_audio_modes(argv)
     args = build_parser().parse_args(argv)
     events = getattr(args, "events", False)
     em = Emitter(JsonLinesSink()) if events else None

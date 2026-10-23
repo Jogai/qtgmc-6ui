@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import Qt
 
 pytest.importorskip("pytestqt")
 pytestmark = pytest.mark.gui
@@ -380,3 +381,90 @@ def test_no_master_job_produces_views_only(qtbot, window, env: Path) -> None:
     assert [o["kind"] for o in item.outputs] == ["view"]
     jobs = [json.loads(x) for x in (env.parent / "argv.log").read_text(encoding="utf-8").splitlines()]
     assert any(a[0] == "run-job" for a in jobs)
+
+
+AUDIO_ORDER = ["copy", "pcm", "flac", "alac", "aac", "opus"]
+FORBIDDEN = ("best", "worst", "default")
+
+
+def _load_audio(qtbot, window) -> None:
+    window.load_audio_modes()
+    qtbot.waitUntil(lambda: window.settings_panel.audio_combo.count() > 0, timeout=TIMEOUT)
+
+
+def test_audio_selector_order_initial_and_lossy_warning(qtbot, window) -> None:
+    _load_audio(qtbot, window)
+    sp = window.settings_panel
+    combo = sp.audio_combo
+    assert [combo.itemData(i) for i in range(combo.count())] == AUDIO_ORDER
+    assert combo.currentIndex() == 0 and combo.currentText() == "Copy source audio"
+    assert combo.isVisibleTo(sp) and not sp.audio_warning.isVisibleTo(sp)
+    assert combo.itemData(4, Qt.ItemDataRole.ToolTipRole)  # tooltip from the backend
+    combo.setCurrentIndex(combo.findData("aac"))
+    assert sp.audio_warning.isVisibleTo(sp) and "no longer the original" in sp.audio_warning.text()
+    combo.setCurrentIndex(combo.findData("flac"))
+    assert not sp.audio_warning.isVisibleTo(sp)
+
+
+def test_audio_mode_in_jobspec_and_persisted(qtbot, window, env: Path) -> None:
+    _load_audio(qtbot, window)
+    sp = window.settings_panel
+    sp.audio_combo.setCurrentIndex(sp.audio_combo.findData("opus"))
+    (item,) = add_and_wait(qtbot, window, [env / "pal_tff.avi"])
+    spec = window.build_spec(item)
+    assert spec.to_dict()["master"]["audio"] == "opus"
+    assert "audio: Opus (lossy)" in item.summary
+    with qtbot.waitSignal(window.controller.batchFinished, timeout=TIMEOUT):
+        window.start_queue()
+    assert item.status.value == "done"
+    rp = window.run_panel
+    assert "audio: Opus (lossy)" in rp.summary_label.text()
+    assert rp.warning_label.isVisibleTo(rp) and "lossless audio mode" in rp.warning_label.text()  # CLI hint
+    # remembered like the other master settings
+    from qtgmc_6ui.gui.main_window import MainWindow
+
+    win2 = MainWindow(run_startup_checks=False)
+    qtbot.addWidget(win2)
+    _load_audio(qtbot, win2)
+    assert win2.settings_panel.audio_mode() == "opus"
+    win2.shutdown()
+
+
+def test_audio_mode_unsupported_error(qtbot, window, env: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAKE_QTGMC_AUDIO_FAIL", "1")
+    _load_audio(qtbot, window)
+    window.settings_panel.audio_combo.setCurrentIndex(2)  # flac
+    (item,) = add_and_wait(qtbot, window, [env / "pal_tff.avi"])
+    with qtbot.waitSignal(window.controller.batchFinished, timeout=TIMEOUT):
+        window.start_queue()
+    assert item.status.value == "failed" and item.error["code"] == "audio_mode_unsupported"
+    assert "choose another audio mode" in window.run_panel.error_label.text()
+
+
+def test_audio_selector_hidden_with_old_backend(qtbot, window, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAKE_QTGMC_NO_AUDIO_MODES", "1")
+    window.load_audio_modes()
+    qtbot.waitUntil(lambda: window._audio_call is not None and window._audio_call.proc.state().name == "NotRunning",
+                    timeout=TIMEOUT)
+    qtbot.wait(100)
+    sp = window.settings_panel
+    assert not sp.audio_combo.isVisibleTo(sp) and sp.audio_mode() is None
+
+
+def test_no_forbidden_words_in_settings(qtbot, window) -> None:
+    from PySide6.QtWidgets import QAbstractButton, QComboBox, QLabel, QSpinBox
+
+    _load_audio(qtbot, window)
+    sp = window.settings_panel
+    texts = []
+    for w in sp.findChildren(QLabel) + sp.findChildren(QAbstractButton):
+        texts += [w.text(), w.toolTip()]
+    for c in sp.findChildren(QComboBox):
+        texts += [c.itemText(i) for i in range(c.count())] + [str(c.itemData(i, Qt.ItemDataRole.ToolTipRole) or "") for i in range(c.count())]
+    for s in sp.findChildren(QSpinBox):
+        texts.append(s.specialValueText())
+    for i in range(sp.audio_combo.count()):  # also the lossy warning for every mode
+        sp.audio_combo.setCurrentIndex(i)
+        texts.append(sp.audio_warning.text())
+    bad = [t for t in texts if any(w in t.lower().split() or w in t.lower() for w in FORBIDDEN)]
+    assert not bad, bad
