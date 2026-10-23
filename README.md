@@ -9,7 +9,7 @@ QTGMC deinterlacing for archival video on Arch Linux, with a Qt6 GUI and a scrip
 
 ## What it is, and why
 
-qtgmc-6UI is an application for restoring interlaced archival video: VHS, Hi8 and Video8 captures, DV, DVD, HDV and AVCHD. It has a Qt6 GUI and a scriptable CLI on top of the same core, so you do not write VapourSynth scripts yourself. A file is analysed first (field order, and whether it is truly interlaced, telecined, mixed or progressive), then deinterlaced with QTGMC, by default to double rate. The result is an FFV1 + FLAC master in which the original field lines are copied back unchanged and only the missing lines are synthesised. Viewing copies (H.264, HEVC and others, from editable profiles) are encoded from that master, and the original file is never modified.
+qtgmc-6UI is an application for restoring interlaced archival video: VHS, Hi8 and Video8 captures, DV, DVD, HDV and AVCHD. It has a Qt6 GUI and a scriptable CLI on top of the same core, so you do not write VapourSynth scripts yourself. A file is analysed first (field order, and whether it is truly interlaced, telecined, mixed or progressive), then deinterlaced with QTGMC, by default to double rate. The result is an FFV1 master, with the original audio tracks copied unchanged, in which the original field lines are copied back unchanged and only the missing lines are synthesised. Viewing copies (H.264, HEVC and others, from editable profiles) are encoded from that master, and the original file is never modified.
 
 Deinterlacing is done by `vsdeinterlace.QTempGaussMC` from vsjetpack 2.2.6, because havsfunc no longer contains QTGMC (r34 removed it, and the last working tag, r33, targets very old plugins). Telecined and mixed material is blocked unless you force it, because it needs IVTC with another tool, and the field order is never guessed.
 
@@ -54,6 +54,8 @@ qtgmc-6ui deint clip.avi --dry-run               # show plan and ffmpeg commands
 qtgmc-6ui deint clip.avi                         # master: <name>.mkv next to the input (see --out-dir, --name)
 qtgmc-6ui deint clip.avi --view mp4-h264-aac --view mkv-hevc10-opus
 qtgmc-6ui deint clip.avi --field-order bff --rate single --preset slow
+qtgmc-6ui deint clip.avi --audio flac            # master audio: copy (initial) | pcm | flac | alac | aac | opus
+qtgmc-6ui audio-modes [--json]                   # the audio modes with their labels (what the GUI shows)
 qtgmc-6ui deint clip.avi --force --field-order tff   # override a telecine/progressive block
 qtgmc-6ui view clip.deint.mkv --profile mp4-h264-aac # viewing copy from an existing master
 qtgmc-6ui profiles list | show ID | validate FILE.toml | export ID | save FILE.toml | delete ID | path
@@ -71,7 +73,7 @@ The pipeline runs VapourSynth in-process and streams y4m into ffmpeg's stdin. Th
 
 ## Archival master and the fidelity guarantee
 
-The master is fixed apart from the options above: Matroska, FFV1 level 3 (`-g 1 -slices 16 -slicecrc 1`), FLAC level 8. Audio is copied from the original file, never through VapourSynth, and all audio tracks are mapped. The source pixel format and bit depth are kept (no chroma conversion). SAR and colour tags are re-applied with `setsar` and `setparams`, because y4m carries neither. Tags come from the source, else defaults by resolution and rate: PAL SD `bt470bg`, NTSC SD `smpte170m`, HD `bt709`, range tv. The input file is never modified. Output goes to a hidden `.<name>.partial` file that is renamed only when the encode and verification succeed.
+The master is fixed apart from the options above: Matroska, FFV1 level 3 (`-g 1 -slices 16 -slicecrc 1`). Audio is taken from the original file, never through VapourSynth, and all audio tracks are mapped. `--audio` chooses what happens to every track: `copy` (the initial value: the source stream unchanged, bit-exact; a codec Matroska cannot carry is stored as FLAC with a warning), `pcm` (uncompressed, at the source sample format and bit depth), `flac` (level 8), `alac` (16- or 24/32-bit integer; not for floating-point sources), `aac` (256 kbps stereo, 128 kbps per channel) or `opus` (192 kbps stereo, 96 kbps per channel, 48 kHz). The two lossy modes warn that the master's audio is no longer the original. After the encode the master is verified: for the lossless modes every track is decoded and compared with the decoded source (MD5), the lossy ones must keep their duration; the A/V start offset of the source is kept in every mode. The source pixel format and bit depth are kept (no chroma conversion). SAR and colour tags are re-applied with `setsar` and `setparams`, because y4m carries neither. Tags come from the source, else defaults by resolution and rate: PAL SD `bt470bg`, NTSC SD `smpte170m`, HD `bt709`, range tv. The input file is never modified. Output goes to a hidden `.<name>.partial` file that is renamed only when the encode and verification succeed.
 
 Defaults: detected field order, bob (25i gives 50p, 29.97i gives 59.94p), source match + lossless, no denoise. The preset follows the height: up to 576 lines `slower`, up to 720 `medium`, above that (1080i, 1440x1080) `fast`. `--preset` goes higher or lower, up to `placebo`.
 

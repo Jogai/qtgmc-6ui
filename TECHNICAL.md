@@ -95,7 +95,10 @@ original ---+--> bs.VideoSource (bestsource) -> std.SetFieldBased(tff|bff from t
                    -vf setsar=SAR,setparams=colorspace:color_primaries:color_trc:range
                    -color_range tv|pc
                    -c:v ffv1 -level 3 -g 1 -slices 16 -slicecrc 1
-                   -c:a flac -compression_level 8 -f matroska .<name>.mkv.partial
+                   per audio track (--audio, audiomodes.py):  -c:a:N copy | pcm_s16le/s24le/s32le/f32le/... |
+                     flac -compression_level 8 | alac -sample_fmt s16p/s32p | aac -b:a 128k*ch | libopus -b:a 96k*ch -ar 48000
+                   -f matroska .<name>.mkv.partial
+                   then ffprobe + decoded-audio MD5 (lossless modes) before the rename to <name>.mkv
 ```
 
 (c) Inside QTempGaussMC (`vsdeinterlace/qtgmc.py`, stages in execution order) with the plugin that does the work. "std" and "resize" are built into VapourSynth.
@@ -127,7 +130,7 @@ output      one frame per field (bob); qtgmc.py takes every other frame for --ra
 (d) The three viewing-copy backends, plus the optional sox audio step:
 
 ```text
-master <name>.mkv (FFV1 + FLAC)
+master <name>.mkv (FFV1 + the audio of --audio: source codec, PCM, FLAC, ALAC, AAC or Opus)
   |
   +-- ffmpeg backend (one process)
   |     ffmpeg -i master -vf [framestep=2,]setpts,[scale,]setsar,setparams
@@ -189,7 +192,7 @@ Single rate, the `faster`, `slower` and `placebo` presets, 4:1:1 and 4:2:2 10-bi
 | Python | python.org, PSF-2.0 | interpreter of the app and of the private venv in `/usr/lib/qtgmc-6ui/venv` | always; a minor-version bump needs a rebuild |
 | VapourSynth | vapoursynth.com, LGPL-2.1-or-later | frame server, used in-process through its Python module: plugin loading with autoloading off, `std.SetFieldBased`/`SeparateFields`, `resize.Point` for the 4:1:1 detour and RGB conversion for previews, y4m output into ffmpeg | master, preview, doctor; not analyze |
 | bestsource (`vapoursynth-plugin-bestsource`) | github.com/vapoursynth/bestsource, MIT | the only source filter: frame-accurate decoding with an index cached in `~/.cache/qtgmc-6ui/bsindex` | every master and every preview; without it nothing can be opened. ffms2 and other source filters are not used |
-| FFmpeg (`ffmpeg`, incl. ffprobe) | ffmpeg.org, GPL-3.0-only (Arch build) | ffprobe: probe, verification of master and copies, packet/frame order for esmux. ffmpeg: `idet` and `fieldmatch` analysis; master `setsar`, `setparams`, `ffv1`, `flac`, matroska; viewing copies `framestep`, `setpts`, `scale`, `setsar`, `setparams`, `libx264`, `libx265`, `aac`, `libopus`, `flac`, y4m output for the CLI encoders, `-f sox` output for the sox step, MPEG-TS input for the HEVC remux; short test muxes (`lavfi` `testsrc2`/`sine`) that decide which container/codec pairs are offered | analysis of every file; every master; every viewing copy; encoder lists and the profile editor |
+| FFmpeg (`ffmpeg`, incl. ffprobe) | ffmpeg.org, GPL-3.0-only (Arch build) | ffprobe: probe, verification of master and copies, packet/frame order for esmux. ffmpeg: `idet` and `fieldmatch` analysis; master `setsar`, `setparams`, `ffv1`, audio `copy`/`pcm_*`/`flac`/`alac`/`aac`/`libopus`, matroska; viewing copies `framestep`, `setpts`, `scale`, `setsar`, `setparams`, `libx264`, `libx265`, `aac`, `libopus`, `flac`, y4m output for the CLI encoders, `-f sox` output for the sox step, MPEG-TS input for the HEVC remux; short test muxes (`lavfi` `testsrc2`/`sine`) that decide which container/codec pairs are offered | analysis of every file; every master; every viewing copy; encoder lists and the profile editor |
 | PySide6, Qt 6 (`pyside6`, `qt6-svg`) | qt.io, LGPL-3.0-only / GPL-3.0-only | GUI widgets and QProcess; `qt6-svg` loads the SVG icon | GUI only; the CLI never imports it |
 | numpy, rich, typing_extensions | numpy.org (custom), MIT, Python-2.0.1 | imported by vsjetpack and jetpytools; numpy also speeds up PNG writing in the preview | whenever vsjetpack is imported (master, preview output, doctor) |
 | psutil (`python-psutil`) | github.com/giampaolo/psutil, BSD-3-Clause | `osdep.process_alive`: whether the process that owns a `.<name>.nomaster.<pid>.tmp.mkv` temporary master still runs (a zombie counts as dead), so leftovers of killed `--no-master` runs are deleted and live runs are left alone; vsjetpack imports it too | every `deint`/`run-job` (stale temp-master scan of the output folder) |
