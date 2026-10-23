@@ -25,7 +25,7 @@ jobs:
     env:
       UV_LINK_MODE: copy
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Lint
         run: |
@@ -46,12 +46,17 @@ jobs:
           # what Arch provides (excluded from uv.lock) comes from PyPI here; --no-config because
           # [tool.uv] exclude-dependencies of this repo would skip exactly these packages
           uv pip install --no-config --python /tmp/venv/bin/python -r /tmp/locked.txt \
-            psutil platformdirs numpy rich cattrs attrs tomli-w typing-extensions pytest VapourSynth
+            psutil platformdirs numpy rich cattrs attrs tomli-w typing-extensions pytest pytest-cov mypy VapourSynth
+
+      - name: Type check
+        run: /tmp/venv/bin/python -m mypy
 
       - name: Tests that need no Arch stack
         run: |
+          # coverage of the non-GUI code by these tests, with a floor (fail_under in pyproject.toml)
           PYTHONPATH=src /tmp/venv/bin/python -m pytest -p no:cacheprovider -q \
-            --ignore-glob='tests/test_gui_*' -m "not needs_sandbox and not needs_qtgmc and not gui"
+            --ignore-glob='tests/test_gui_*' -m "not needs_sandbox and not needs_qtgmc and not gui" \
+            --cov --cov-report=term-missing:skip-covered --cov-report=xml:/tmp/coverage.xml
 
       - name: Build the wheel and check its contents
         run: |

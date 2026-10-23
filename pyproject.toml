@@ -81,3 +81,27 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
 ignore = ["E501", "UP047", "B008"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["src"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+# Qt is not installed for the type check in CI (a 400 MB wheel for stubs), vapoursynth ships none
+# and psutil's live in a separate package: their names are Any.
+[[tool.mypy.overrides]]
+module = ["PySide6.*", "shiboken6.*", "vapoursynth.*", "psutil.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["src/qtgmc_6ui"]
+branch = true
+# the GUI needs a Qt platform and runs in the local suite only; CI reports the rest
+omit = ["src/qtgmc_6ui/__main__.py", "src/qtgmc_6ui/gui/*"]
+
+[tool.coverage.report]
+skip_empty = true
+# 62 % measured by the CI tests; raise it when coverage grows, never lower it to make a run pass
+fail_under = 60
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\.$"]

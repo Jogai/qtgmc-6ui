@@ -7,6 +7,8 @@ build/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.coverage
+coverage.xml
 packaging/aur/src/
 packaging/aur/pkg/
 packaging/aur/*.pkg.tar.*
