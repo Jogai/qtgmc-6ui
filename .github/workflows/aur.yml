@@ -1,14 +1,16 @@
 name: AUR release
 
-# Tag vX.Y.Z (must equal __version__): build + smoke-test the package on Arch, then push
-# PKGBUILD and .SRCINFO to the AUR. Setup and details: packaging/aur/PKGBUILD.md.
+# Tag vX.Y.Z (must equal __version__): pin the release checksum, regenerate .SRCINFO and push
+# PKGBUILD and .SRCINFO to the AUR. No package build here (the release is live in about a minute);
+# ci.yml checks every push and arch-canary.yml builds master every week. Setup and details:
+# packaging/aur/PKGBUILD.md.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing tag to test (dry run, nothing is published)
+        description: Existing tag to prepare (dry run, nothing is published)
         required: true
 
 permissions:
@@ -22,22 +24,22 @@ env:
   TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
 
 jobs:
-  test-build:
-    name: Test build (Arch)
+  prepare:
+    name: Pin checksum and .SRCINFO (Arch)
     runs-on: ubuntu-latest
     container: archlinux:base-devel
-    timeout-minutes: 120
+    timeout-minutes: 15
     steps:
       - name: Prepare Arch
         run: |
           # pacman's download sandbox needs kernel features that container runtimes block
           sed -i '/^\[options\]/a DisableSandboxFilesystem\nDisableSandboxSyscalls' /etc/pacman.conf
           sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
-          pacman -Syu --noconfirm --noprogressbar git sudo python namcap
+          pacman -Syu --needed --noconfirm --noprogressbar git sudo python
           useradd -m builder
           echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: refs/tags/${{ env.TAG }}
 
@@ -57,29 +59,7 @@ jobs:
             python3 -I packaging/sync-pkgbuild.py --check
           '
 
-      - name: Build
-        run: |
-          sudo -u builder -H env "WS=$GITHUB_WORKSPACE" bash -euo pipefail -c '
-            mkdir ~/build
-            cp "$WS"/packaging/aur/PKGBUILD ~/build/
-            cd ~/build
-            makepkg -sf --noconfirm --noprogressbar
-          '
-
-      - name: namcap
-        run: |
-          cd /home/builder/build
-          out=$(namcap -e pydepends PKGBUILD ./*.pkg.tar.* || true)
-          echo "$out"
-          # warnings are known and listed in PKGBUILD.md; errors fail the gate
-          ! grep -q ' E: ' <<<"$out"
-
-      - name: Install and smoke test
-        run: |
-          pacman -U --noconfirm --noprogressbar /home/builder/build/*.pkg.tar.*
-          sudo -u builder -H bash "$GITHUB_WORKSPACE/packaging/ci-smoke.sh"
-
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aur-files
           path: |
@@ -93,12 +73,12 @@ jobs:
 
   publish:
     name: Publish to the AUR
-    needs: test-build
+    needs: prepare
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: aur
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: aur-files
           path: files
@@ -106,7 +86,7 @@ jobs:
       - name: Push to the AUR
         env:
           AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          VER: ${{ needs.test-build.outputs.ver }}
+          VER: ${{ needs.prepare.outputs.ver }}
         run: |
           install -d -m 700 ~/.ssh
           (umask 077; printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur)

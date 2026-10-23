@@ -54,7 +54,7 @@ python3 -I packaging/sync-pkgbuild.py --check   # exit 1 when anything is stale
 
 ## Publishing from GitHub Actions
 
-A pushed tag `v$pkgver` (it must equal `__version__`) runs `.github/workflows/aur.yml`. The `test-build` job runs in an `archlinux:base-devel` container: it pins the release checksum with `sync-pkgbuild.py --project-sha256 auto`, builds with `makepkg -s`, runs namcap (errors fail, warnings are the known ones below), installs the package and runs `packaging/ci-smoke.sh` (`doctor`, a master plus a viewing copy, and a `--no-master` run). Only if that passes does the `publish` job push `PKGBUILD` and `.SRCINFO` to the AUR. Nothing is committed back to GitHub, so the tracked `PKGBUILD` keeps `_project_sha256='SKIP'`.
+A pushed tag `v$pkgver` (it must equal `__version__`) runs `.github/workflows/aur.yml`. The `prepare` job runs in an `archlinux:base-devel` container: it pins the release checksum with `sync-pkgbuild.py --project-sha256 auto` and regenerates `.SRCINFO`, and `--check` verifies the result. It does not build the package, so a release takes about a minute; the build, namcap and the install smoke test (`packaging/ci-smoke.sh`: `doctor`, a master plus a viewing copy, and a `--no-master` run) run weekly in `arch-canary.yml` against master and on demand through its Run workflow button. The `publish` job then pushes `PKGBUILD` and `.SRCINFO` to the AUR. Nothing is committed back to GitHub, so the tracked `PKGBUILD` keeps `_project_sha256='SKIP'`.
 
 One-time setup:
 
