@@ -58,6 +58,17 @@ class RateMode(StrEnum):
     SINGLE = "single"  # bob()[::2]: first field of each frame kept
 
 
+class AudioMode(StrEnum):
+    """Audio of the archival master; the ordered catalogue (labels, tooltips) is audiomodes.MODES."""
+
+    COPY = "copy"
+    PCM = "pcm"
+    FLAC = "flac"
+    ALAC = "alac"
+    AAC = "aac"
+    OPUS = "opus"
+
+
 class ChromaMode(StrEnum):
     KEEP = "keep"  # master keeps source subsampling (4:1:1 goes 422 -> QTGMC -> 411 bit-exact)
     YUV422 = "422"  # keep the 4:2:2 intermediate for 4:1:1 sources
@@ -208,6 +219,7 @@ class AudioProbe(Serializable):
     duration_s: float = 0.0
     start_time_s: float = 0.0
     language: str = ""
+    sample_fmt: str = ""  # ffprobe sample_fmt (s16, s32, flt, dbl, u8, planar variants); "" when unknown
 
 
 @dataclass
@@ -329,6 +341,7 @@ class MasterSettings(Serializable):
     colorimetry_override: Colorimetry | None = None
     threads: int = 0  # 0 = all cores
     cache_mb: int = 0  # 0 = default by resolution (SD 2048, HD 6144)
+    audio: AudioMode = AudioMode.COPY  # master audio for every track (see audiomodes.py)
 
 
 @dataclass
@@ -366,6 +379,20 @@ class OutputFile(Serializable):
 
 
 @dataclass
+class AudioTrackPlan(Serializable):
+    """What the master does with one source audio track (audiomodes.plan)."""
+
+    index: int = 0  # absolute stream index in the input
+    track: int = 0  # 0-based audio track number (-map 1:a:N)
+    source_codec: str = ""
+    codec: str = ""  # ffmpeg encoder name, or "copy"
+    expect: str = ""  # codec_name ffprobe reports for the master track
+    lossless: bool = True
+    bitrate_kbps: int = 0  # lossy modes only
+    note: str = ""  # e.g. fallback reason
+
+
+@dataclass
 class JobResult(Serializable):
     schema: int = JOB_SCHEMA
     input: str = ""
@@ -376,6 +403,7 @@ class JobResult(Serializable):
     average_fps: float = 0.0
     effective_master: MasterSettings | None = None
     qtgmc_kwargs: dict[str, Any] = field(default_factory=dict)  # what the adapter actually used
+    audio_tracks: list[AudioTrackPlan] = field(default_factory=list)  # master audio per source track
 
 
 # --------------------------------------------------------------------------- profiles

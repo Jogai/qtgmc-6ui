@@ -56,6 +56,7 @@ class ErrorCode(StrEnum):
     PROFILE_INVALID = "profile_invalid"
     PROFILE_NOT_FOUND = "profile_not_found"
     PROFILE_COMBINATION_INVALID = "profile_combination_invalid"  # muxer rejects codec
+    AUDIO_MODE_UNSUPPORTED = "audio_mode_unsupported"  # master audio mode cannot take this source audio
     OUTPUT_EXISTS = "output_exists"
     OUTPUT_NOT_WRITABLE = "output_not_writable"
     CANCELLED = "cancelled"
@@ -88,6 +89,7 @@ _EXIT_FOR_CODE: dict[ErrorCode, ExitCode] = {
     ErrorCode.PROFILE_INVALID: ExitCode.USAGE,
     ErrorCode.PROFILE_NOT_FOUND: ExitCode.USAGE,
     ErrorCode.PROFILE_COMBINATION_INVALID: ExitCode.USAGE,
+    ErrorCode.AUDIO_MODE_UNSUPPORTED: ExitCode.USAGE,
     ErrorCode.OUTPUT_EXISTS: ExitCode.OUTPUT,
     ErrorCode.OUTPUT_NOT_WRITABLE: ExitCode.OUTPUT,
     ErrorCode.CANCELLED: ExitCode.CANCELLED,

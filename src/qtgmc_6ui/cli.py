@@ -5,7 +5,7 @@ are dispatched lazily so importing this module never imports vapoursynth or Qt.
   qtgmc-6ui analyze INPUT [--json|--events] [--full] [--windows N] [--window-frames W] [--no-cache]
   qtgmc-6ui deint INPUT [-o OUT] [--out-dir DIR] [--name TEMPLATE] [--field-order auto|tff|bff]
             [--rate double|single] [--preset P] [--no-lossless] [--no-source-match]
-            [--denoise SIGMA] [--chroma keep|422] [--view PROFILE ...] [--no-master] [--force] [--overwrite]
+            [--denoise SIGMA] [--chroma keep|422] [--audio copy|pcm|flac|alac|aac|opus] [--view PROFILE ...] [--no-master] [--force] [--overwrite]
             [--threads N] [--cache-mb N] [--json|--events] [--dry-run] [--save-job FILE]
   qtgmc-6ui run-job JOB.json|-  [--json|--events] [--dry-run]
   qtgmc-6ui view MASTER --profile P [-o OUT] [--overwrite] [--json|--events]
@@ -19,6 +19,7 @@ are dispatched lazily so importing this module never imports vapoursynth or Qt.
   qtgmc-6ui preview-info INPUT [--json]            frames/fps/size for the scrubber
   qtgmc-6ui preview-serve INPUT                    JSON-lines preview server (see preview.serve)
   qtgmc-6ui script INPUT [deint options]           prints the equivalent .vpy
+  qtgmc-6ui audio-modes [--json]
   qtgmc-6ui version [--json]
 
 Exit codes: errors.ExitCode.  ``--events`` = JSON lines on stdout (events.py); ``--json`` =
@@ -35,7 +36,7 @@ from collections.abc import Sequence
 
 from . import __version__
 from .errors import ExitCode, QtgmcError
-from .models import ChromaMode, FieldOrderChoice, Preset, PreviewMode, RateMode
+from .models import AudioMode, ChromaMode, FieldOrderChoice, Preset, PreviewMode, RateMode
 
 EPILOG = """examples:
   qtgmc-6ui analyze clip.avi
@@ -70,6 +71,8 @@ def _deint_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--no-source-match", action="store_true")
     p.add_argument("--denoise", type=float, default=0.0, metavar="SIGMA", help="DFTTest sigma; alters the image")
     p.add_argument("--chroma", choices=[c.value for c in ChromaMode], default="keep")
+    p.add_argument("--audio", choices=[c.value for c in AudioMode], default="copy",
+                   help="audio of the master, applied to every track (default: copy); see `qtgmc-6ui audio-modes`")
     p.add_argument("--threads", type=int, default=0)
     p.add_argument("--cache-mb", type=int, default=0)
 
@@ -171,6 +174,9 @@ def build_parser() -> argparse.ArgumentParser:
     sc = sub.add_parser("script", help="print the equivalent VapourSynth script")
     sc.add_argument("input")
     _deint_options(sc)
+
+    am = sub.add_parser("audio-modes", help="list the selectable audio modes of the master (--json for the GUI)")
+    am.add_argument("--json", action="store_true")
 
     ve = sub.add_parser("version", help="print the version")
     ve.add_argument("--json", action="store_true")

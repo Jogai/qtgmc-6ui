@@ -20,6 +20,7 @@ from .errors import BlockedError, ErrorCode, InputError, OutputError, QtgmcError
 from .models import (
     JOB_SCHEMA,
     AnalysisResult,
+    AudioMode,
     ChromaMode,
     ContentClass,
     FieldOrder,
@@ -52,6 +53,7 @@ def master_settings_from_args(args: argparse.Namespace) -> MasterSettings:
         lossless=not getattr(args, "no_lossless", False),
         denoise_sigma=float(getattr(args, "denoise", 0.0) or 0.0),
         chroma=ChromaMode(getattr(args, "chroma", None) or "keep"),
+        audio=AudioMode(getattr(args, "audio", None) or "copy"),
         threads=int(getattr(args, "threads", 0) or 0),
         cache_mb=int(getattr(args, "cache_mb", 0) or 0),
     )

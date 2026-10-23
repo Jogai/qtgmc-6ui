@@ -216,6 +216,7 @@ def _audio_from_stream(stream: dict[str, Any], fmt: dict[str, Any]) -> AudioProb
         duration_s=_stream_duration(stream, fmt),
         start_time_s=parse_duration(stream.get("start_time")) or 0.0,
         language=_tag(stream, "language") or "",
+        sample_fmt=str(stream.get("sample_fmt") or ""),
     )
 
 

@@ -5,7 +5,7 @@
          -vf setsar=NUM/DEN,setparams=colorspace=..:color_primaries=..:color_trc=..:range=..[:chroma_location=..]
          -color_range tv|pc [-chroma_sample_location N]
          -c:v ffv1 -level 3 -g 1 -slices 16 -slicecrc 1
-         -c:a flac -compression_level 8 [-strict experimental]
+         <audio options per track from audiomodes: -c:a:N copy | pcm_* | flac | alac | aac | libopus ...>
          -f matroska OUT
 
 Audio comes straight from the original (all tracks, ``1:a?``); video pix_fmt is
@@ -85,11 +85,14 @@ def master_command(
     chroma_location: str = "",
     video_offset_s: float = 0.0,
     flac_32bit: bool = False,
+    audio_args: list[str] | None = None,
 ) -> list[str]:
     """``audio_tracks``: -1 = every audio track of the original, 0 = none, n = the first n.
     ``video_offset_s``: how much later than the original's earliest stream its video starts
     (the original is shifted by -offset so the A/V offset survives, see the module docstring).
-    ``flac_32bit``: the original has 32-bit integer PCM; FLAC keeps 32 bits with -strict experimental."""
+    ``flac_32bit``: the original has 32-bit integer PCM; FLAC keeps 32 bits with -strict experimental.
+    ``audio_args``: per-track audio options from audiomodes.AudioPlan.ffmpeg_args(); when given they
+    replace the FLAC recipe (the audio mode decides the codec of every track)."""
     cmd = [ffmpeg, "-hide_banner", "-nostdin", "-loglevel", "info", "-stats", "-stats_period", "1",
            "-y" if overwrite else "-n", "-i", "pipe:0"]
     if video_offset_s > 0 and audio_tracks != 0:
@@ -107,9 +110,12 @@ def master_command(
         cmd += ["-chroma_sample_location", str(_CHROMA_OPTION[chroma_location])]
     cmd += list(FFV1_ARGS)
     if audio_tracks != 0:
-        cmd += list(FLAC_ARGS)
-        if flac_32bit:
-            cmd += ["-strict", "experimental"]
+        if audio_args is not None:
+            cmd += list(audio_args)
+        else:
+            cmd += list(FLAC_ARGS)
+            if flac_32bit:
+                cmd += ["-strict", "experimental"]
     cmd += ["-f", "matroska", output]
     return cmd
 

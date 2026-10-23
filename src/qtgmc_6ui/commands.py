@@ -423,8 +423,10 @@ def _synth_master_probe(a: AnalysisResult, settings: MasterSettings, path: str) 
         p.video.fps = p.video.fps * 2
         if p.video.nb_frames is not None:
             p.video.nb_frames *= 2
-    for au in p.audio:
-        au.codec = "flac"
+    from . import audiomodes
+
+    for au, t in zip(p.audio, audiomodes.plan(settings.audio, p.audio, probe_mux=None).tracks, strict=True):
+        au.codec = t.expect
     return p
 
 
@@ -437,10 +439,16 @@ def _dry_run_plan(job: JobSpec, a: AnalysisResult, outputs: list[str], warnings:
     plan["job"]["analysis"] = None  # the analysis is reported separately
     plan["analysis"] = a.to_dict()
     try:
-        from . import master
+        from . import audiomodes, master
 
+        aplan = audiomodes.plan(job.master.audio, a.probe.audio)
+        plan["audio_tracks"] = [t.to_dict() for t in aplan.tracks]
+        plan["warnings"] = warnings + [m for _c, m, _h in aplan.warnings]
         col = job.master.colorimetry_override or a.colorimetry
-        plan["master_command"] = master.master_command(job.input, master_file, a.probe.video.sar, col, overwrite=job.overwrite)
+        plan["master_command"] = master.master_command(job.input, master_file, a.probe.video.sar, col, overwrite=job.overwrite,
+                                                       audio_args=aplan.ffmpeg_args())
+    except QtgmcError:
+        raise
     except Exception as e:  # noqa: BLE001 - a plan is best effort
         plan["notes"].append(f"master command unavailable: {internal_error(e).message}")
     try:
@@ -452,7 +460,7 @@ def _dry_run_plan(job: JobSpec, a: AnalysisResult, outputs: list[str], warnings:
     try:
         from . import qtgmc
 
-        plan["warnings"] = warnings + list(qtgmc.fidelity_warnings(job.master))
+        plan["warnings"] = list(plan.get("warnings", warnings)) + list(qtgmc.fidelity_warnings(job.master))
     except Exception:  # noqa: BLE001
         pass
     views = []
@@ -474,6 +482,7 @@ def _plan_text(plan: dict[str, Any]) -> str:
     import shlex
 
     lines = ["dry run: nothing was written", "outputs:"] + [f"  {o}" for o in plan["outputs"]]
+    lines += _audio_lines(plan.get("audio_tracks") or [])
     lines += [f"warning: {w}" for w in plan.get("warnings", [])]
     if plan.get("temp_master"):
         lines.append(f"no master kept: temporary master {plan['temp_master']} is deleted after the viewing copies")
@@ -489,8 +498,19 @@ def _plan_text(plan: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _audio_lines(tracks: list[Any]) -> list[str]:
+    out = []
+    for t in tracks:
+        d = t if isinstance(t, dict) else t.to_dict()
+        how = "copied" if d.get("codec") == "copy" else f"-> {d.get('expect')}" + (f" {d['bitrate_kbps']} kbps" if d.get("bitrate_kbps") else "")
+        tail = f"  ({d['note']})" if d.get("note") else ""
+        out.append(f"audio #{d.get('index')}: {d.get('source_codec')} {how}{tail}")
+    return out
+
+
 def _job_text(res: JobResult) -> str:
     lines = [f"done in {res.elapsed_s:.1f} s" + (f" ({res.average_fps:.1f} fps)" if res.average_fps else "")]
+    lines += _audio_lines(res.audio_tracks)
     for o in res.outputs:
         extra = []
         if o.frames is not None:
@@ -520,6 +540,9 @@ def execute_job(ctx: Ctx, job: JobSpec, command: str, *, dry_run: bool = False) 
         warnings = jobs.check_blocked(job.analysis, job.master, job.force)
         for w in warnings:
             ctx.em.warning("forced" if w.startswith("--force") else "field_order_override", w)
+        from . import audiomodes
+
+        audiomodes.plan(job.master.audio, job.analysis.probe.audio)  # coded error before anything is written
         if not job.skip_master:
             space = jobs.disk_space_warning(job, job.analysis)
             if space:
@@ -970,6 +993,21 @@ def cmd_preview_serve(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------- script
+def cmd_audio_modes(args: argparse.Namespace) -> int:
+    """The ordered audio-mode catalogue of the master (single source of truth: audiomodes.MODES)."""
+    from . import audiomodes
+
+    modes = audiomodes.describe()
+    if args.json:
+        _print_json(modes)
+        return 0
+    w = max(len(m["id"]) for m in modes)
+    for m in modes:
+        sys.stdout.write(f"{m['id']:<{w}}  {m['group']:<8}  {m['label']}\n{'':<{w}}            {m['tooltip']}\n")
+    sys.stdout.write(f"\nthe initial value of --audio is {audiomodes.DEFAULT.value}\n")
+    return 0
+
+
 def cmd_script(args: argparse.Namespace) -> int:
     from . import graph
 
