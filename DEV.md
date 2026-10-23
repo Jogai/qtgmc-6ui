@@ -16,7 +16,7 @@ Local test build from a working tree of this repository (needs `base-devel`; `-s
 
 ```
 packaging/local-build.sh -s            # tars the tree, runs makepkg in ~/.cache/qtgmc-6ui-build
-sudo pacman -U ~/.cache/qtgmc-6ui-build/qtgmc-6ui-0.3.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ~/.cache/qtgmc-6ui-build/qtgmc-6ui-0.4.0-1-x86_64.pkg.tar.zst
 qtgmc-6ui doctor
 ```
 
