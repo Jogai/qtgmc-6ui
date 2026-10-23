@@ -27,11 +27,11 @@ jobs:
           # pacman's download sandbox needs kernel features that container runtimes block
           sed -i '/^\[options\]/a DisableSandboxFilesystem\nDisableSandboxSyscalls' /etc/pacman.conf
           sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
-          pacman -Syu --noconfirm --noprogressbar git sudo python namcap
+          pacman -Syu --needed --noconfirm --noprogressbar git sudo python namcap
           useradd -m builder
           echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build the package from this checkout
         run: |

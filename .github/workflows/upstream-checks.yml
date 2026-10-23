@@ -1,0 +1,53 @@
+name: Upstream checks
+
+# Weekly checks that need the network but no build: the pinned plugin sources still download with
+# their recorded sha256, the locked Python packages have no known vulnerabilities and the links in
+# the documentation still resolve. A failure shows as a red run (GitHub emails the owner).
+# The full package build against current Arch is arch-canary.yml.
+on:
+  schedule:
+    - cron: "0 6 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-checks
+  cancel-in-progress: false
+
+jobs:
+  pins:
+    name: Pinned sources still match
+    runs-on: ubuntu-latest
+    container: ghcr.io/astral-sh/uv:python3.14-trixie
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 -I packaging/plugins/verify-sources.py
+
+  audit:
+    name: Known vulnerabilities in uv.lock
+    runs-on: ubuntu-latest
+    container: ghcr.io/astral-sh/uv:python3.14-trixie
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          uv export --frozen --no-emit-project --no-hashes -o /tmp/locked.txt
+          # the pinned tool version keeps a new release from turning the check red on its own
+          uvx pip-audit==2.10.1 -r /tmp/locked.txt --no-deps --disable-pip
+
+  links:
+    name: Links in the documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          # badges are images served by third parties that rate-limit; the pages they link to are checked
+          args: --no-progress --max-retries 3 --exclude '^https://img\.shields\.io/' README.md DEV.md TECHNICAL.md packaging/aur/PKGBUILD.md
+          fail: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
