@@ -1,0 +1,6 @@
+{
+  "mvutensils": {"seen": "v10", "reason": "v10 breaks vsjetpack 2.2.6; revisit with the vs-jetpack rewrite"},
+  "vszip": {"seen": "23.1.0", "reason": "needs Zig 0.17, which breaks zsmooth"},
+  "zig": {"seen": "0.17.0", "reason": "breaks the zsmooth build"},
+  "jetpytools": {"seen": "3.2.0", "reason": "compatible, held with vsjetpack 2.2.6"}
+}

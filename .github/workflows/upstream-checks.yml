@@ -1,8 +1,9 @@
 name: Upstream checks
 
 # Weekly checks that need the network but no build: the pinned plugin sources still download with
-# their recorded sha256, the locked Python packages have no known vulnerabilities and the links in
-# the documentation still resolve. A failure shows as a red run (GitHub emails the owner).
+# their recorded sha256, the locked Python packages have no known vulnerabilities, the links in
+# the documentation still resolve and newer upstream versions are listed in an issue. A failure
+# shows as a red run (GitHub emails the owner).
 # The full package build against current Arch is arch-canary.yml.
 on:
   schedule:
@@ -37,6 +38,39 @@ jobs:
           uv export --frozen --no-emit-project --no-hashes -o /tmp/locked.txt
           # the pinned tool version keeps a new release from turning the check red on its own
           uvx pip-audit==2.10.1 -r /tmp/locked.txt --no-deps --disable-pip
+
+  versions:
+    name: Newer upstream versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare the pins with the newest upstream releases
+        id: check
+        run: |
+          python3 -I packaging/plugins/check-upstream.py --report /tmp/report.md
+          { echo '### Pinned versus newest upstream'; cat /tmp/report.md; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Open, update or close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEWS: ${{ steps.check.outputs.news }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # versions that were looked at and held are listed in packaging/plugins/holds.json
+          title="Newer upstream versions are available"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ "$NEWS" != 0 ]; then
+            { cat /tmp/report.md; echo; echo "Run: $RUN_URL. Decide, then bump the pin or add the version to packaging/plugins/holds.json."; } > /tmp/body.md
+            if [ -n "$open" ]; then
+              gh issue edit "$open" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/body.md
+            fi
+          elif [ -n "$open" ]; then
+            gh issue close "$open" --repo "$GITHUB_REPOSITORY" --comment "Nothing new to look at: $RUN_URL"
+          fi
 
   links:
     name: Links in the documentation
