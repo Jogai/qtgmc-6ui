@@ -26,9 +26,9 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
+from . import audiomodes, qtgmc, runtime, vsenv
 from . import graph as graph_mod
 from . import master as master_mod
-from . import qtgmc, runtime, vsenv
 from .errors import (
     BlockedError,
     CancelledError,
@@ -63,6 +63,7 @@ def partial_path(output: str) -> str:
     d, n = os.path.split(output)
     return os.path.join(d, f".{n}{PARTIAL_SUFFIX}")
 AV_OFFSET_TOLERANCE_S = 0.005  # matroska timestamps are 1 ms
+AUDIO_DURATION_TOLERANCE_S = 0.06  # one lossy codec frame (AAC 1024 samples, Opus 20 ms) plus priming
 
 _BLOCK_CODES = {
     RecommendedAction.BLOCK_TELECINED: ErrorCode.BLOCKED_TELECINED,
@@ -248,9 +249,69 @@ def _expected_pix_fmt(analysis: AnalysisResult, settings: MasterSettings) -> str
     return src
 
 
+def _audio_md5(path: str, track: int, sample_codec: str, ffmpeg: str = "ffmpeg") -> str:
+    """MD5 of one audio track decoded to ``sample_codec`` (pcm_s32le / pcm_f64le): the same for
+    source and master when the master's audio is lossless."""
+    cmd = [ffmpeg, "-v", "error", "-nostdin", "-i", path, "-vn", "-sn", "-dn", "-map", f"0:a:{track}", "-c:a", sample_codec, "-f", "md5", "-"]
+    r = runtime.run_capture(cmd, timeout=PROBE_TIMEOUT_S * 10)
+    if r.returncode != 0:
+        raise EncodeError(ErrorCode.ENCODE_FAILED, f"cannot decode audio track {track} of {path}: {r.stderr.strip()[-300:]}", "", {"path": path})
+    return r.stdout.strip().split("=", 1)[-1]
+
+
+def _stream_duration(s: dict[str, Any], info: dict[str, Any]) -> float | None:
+    d = _f(s.get("duration"))
+    if d is not None:
+        return d
+    t = (s.get("tags") or {}).get("DURATION") or (s.get("tags") or {}).get("duration")
+    if t:
+        try:
+            h, m, sec = t.split(":")
+            return int(h) * 3600 + int(m) * 60 + float(sec)
+        except ValueError:
+            pass
+    return _f(info.get("format", {}).get("duration"))
+
+
+def _verify_audio(output: str, source: str, analysis: AnalysisResult, aplan: audiomodes.AudioPlan, audio: list[dict[str, Any]],
+                  info: dict[str, Any], emitter: Emitter) -> tuple[list[str], list[str]]:
+    """Per track: codec as planned; lossless tracks decode bit-identically to the source
+    (decoded-audio MD5), lossy tracks keep the duration within a codec frame."""
+    problems: list[str] = []
+    warnings: list[str] = []
+    if len(audio) != len(aplan.tracks):
+        problems.append(f"master has {len(audio)} audio stream(s), expected {len(aplan.tracks)}")
+        return problems, warnings
+    verified: list[str] = []
+    for n, (a, t, src_a) in enumerate(zip(audio, aplan.tracks, analysis.probe.audio, strict=False)):
+        if a.get("codec_name") != t.expect:
+            problems.append(f"audio track {n} is {a.get('codec_name')}, expected {t.expect} ({aplan.mode.value})")
+            continue
+        if t.lossless:
+            kind, _bits = audiomodes._sample_class(src_a)
+            fmt = "pcm_f64le" if kind == "float" else "pcm_s32le"
+            src_md5 = _audio_md5(source, n, fmt)
+            out_md5 = _audio_md5(output, n, fmt)
+            if src_md5 != out_md5:
+                problems.append(f"audio track {n} ({t.expect}) does not decode bit-identically to the source")
+            else:
+                verified.append(f"#{n} {t.expect} {src_md5[:12]}")
+            bits = int(a.get("bits_per_raw_sample") or 0)
+            if t.codec != "copy" and src_a.bit_depth and bits and bits < src_a.bit_depth and kind != "float":
+                warnings.append(f"audio stream {a.get('index')}: {src_a.bit_depth}-bit source stored as {bits}-bit {t.expect}")
+        else:
+            want = src_a.duration_s or _f(info.get("format", {}).get("duration"))
+            have = _stream_duration(a, info)
+            if want and have is not None and abs(have - want) > AUDIO_DURATION_TOLERANCE_S:
+                warnings.append(f"audio track {n} ({t.expect}) lasts {have:.3f} s, the source {want:.3f} s")
+    if verified:
+        emitter.log("app", "audio_verified: " + ", ".join(verified) + " (decoded MD5 identical to the source)")
+    return problems, warnings
+
+
 def _verify_master(output: str, g: graph_mod.Graph, analysis: AnalysisResult, settings: MasterSettings,
                    colorimetry: Colorimetry, audio_tracks: int, source_info: dict[str, Any] | None,
-                   emitter: Emitter) -> tuple[OutputFile, list[str]]:
+                   emitter: Emitter, aplan: audiomodes.AudioPlan | None = None, source: str = "") -> tuple[OutputFile, list[str]]:
     info = _probe_output(output)
     streams = info.get("streams", [])
     video = [s for s in streams if s.get("codec_type") == "video"]
@@ -294,15 +355,14 @@ def _verify_master(output: str, g: graph_mod.Graph, analysis: AnalysisResult, se
             warnings.append(f"master {key} is {v.get(key) or 'unknown'}, expected {want}")
     if g.chroma_location and v.get("chroma_location", "") not in ("", "unspecified", g.chroma_location):
         warnings.append(f"master chroma_location is {v.get('chroma_location')}, source {g.chroma_location}")
-    want_audio = len(analysis.probe.audio) if audio_tracks < 0 else audio_tracks
-    if len(audio) != want_audio:
-        warnings.append(f"master has {len(audio)} audio stream(s), the source has {want_audio}")
-    for a, src_a in zip(audio, analysis.probe.audio, strict=False):
-        if a.get("codec_name") != "flac":
-            warnings.append(f"audio stream {a.get('index')} is {a.get('codec_name')}, expected flac")
-        bits = int(a.get("bits_per_raw_sample") or 0)
-        if src_a.bit_depth and bits and bits < src_a.bit_depth:
-            warnings.append(f"audio stream {a.get('index')}: {src_a.bit_depth}-bit source stored as {bits}-bit FLAC")
+    if aplan is not None and audio_tracks != 0 and source:
+        ap, aw = _verify_audio(output, source, analysis, aplan, audio, info, emitter)
+        problems += ap
+        warnings += aw
+    else:
+        want_audio = len(analysis.probe.audio) if audio_tracks < 0 else audio_tracks
+        if len(audio) != want_audio:
+            warnings.append(f"master has {len(audio)} audio stream(s), the source has {want_audio}")
     if source_info is not None and audio:
         want_av = source_timing(source_info)["av_offset_s"]
         have_av = source_timing(info)["av_offset_s"]
@@ -334,19 +394,6 @@ def effective_settings(analysis: AnalysisResult, settings: MasterSettings) -> Ma
     )
 
 
-def _audio_flags(analysis: AnalysisResult) -> tuple[bool, list[str]]:
-    """(flac_32bit, warnings) from the source audio codecs."""
-    s32 = False
-    warnings = []
-    for a in analysis.probe.audio:
-        codec = (a.codec or "").lower()
-        if codec.startswith("pcm_s32") or codec.startswith("pcm_u32"):
-            s32 = True
-        if codec.startswith("pcm_f") or (a.bit_depth or 0) > 32:
-            warnings.append(f"audio stream {a.index} ({codec}) is floating point; FLAC stores it as 24-bit integer")
-    return s32, warnings
-
-
 def run_master(
     job: JobSpec,
     analysis: AnalysisResult,
@@ -358,7 +405,7 @@ def run_master(
     stage_total: int = 3,
     audio_tracks: int = -1,
 ) -> OutputFile:
-    """Deinterlace ``job.input`` into ``output`` (ffv1/flac mkv).  Emits stage setup/master
+    """Deinterlace ``job.input`` into ``output`` (ffv1 + the chosen audio mode, mkv).  Emits stage setup/master
     with per-frame progress, verifies the result with ffprobe (frames, fps, SAR, colour)."""
     settings = job.master
     _check_output(output, job.input, job.overwrite)
@@ -366,9 +413,9 @@ def run_master(
     eff = effective_settings(analysis, settings)
     for w in qtgmc.fidelity_warnings(eff):
         emitter.warning("fidelity", w)
-    flac_32bit, audio_warnings = _audio_flags(analysis)
-    for w in audio_warnings:
-        emitter.warning("audio", w)
+    aplan = audiomodes.plan(eff.audio, analysis.probe.audio) if audio_tracks != 0 else audiomodes.AudioPlan(eff.audio)
+    for code, msg, hint in aplan.warnings:
+        emitter.warning(code, msg, hint)
 
     emitter.stage("setup", stage_offset + 1, stage_total, "setup: VapourSynth core, plugins, source index, QTGMC graph")
     owned = vsenv.current() is None
@@ -396,9 +443,12 @@ def run_master(
             emitter.log("app", f"video starts {timing['video_offset_s']:.3f} s after the earliest stream; keeping the offset")
         cmd = master_mod.master_command(job.input, partial, analysis.probe.video.sar, colorimetry, overwrite=True,
                                         audio_tracks=audio_tracks, chroma_location=g.chroma_location,
-                                        video_offset_s=timing["video_offset_s"], flac_32bit=flac_32bit)
+                                        video_offset_s=timing["video_offset_s"], audio_args=aplan.ffmpeg_args())
+        for t in aplan.tracks:
+            emitter.log("app", f"audio track #{t.index}: {t.source_codec} -> {t.codec}" + (f" ({t.note})" if t.note else ""))
         emitter.log("app", "ffmpeg command: " + shlex.join(cmd))
-        emitter.stage("master", stage_offset + 2, stage_total, "deinterlace + encode master (ffv1/flac)")
+        audio_label = ", ".join(sorted({t.expect for t in aplan.tracks})) or "no audio"
+        emitter.stage("master", stage_offset + 2, stage_total, f"deinterlace + encode master (ffv1 + {audio_label})")
         enc = _Encoder(cmd, emitter, cancel)
         tracker = ProgressTracker(g.frames_out)
         state: dict[str, Any] = {"last": 0.0, "done": 0, "exc": None}
@@ -460,7 +510,7 @@ def run_master(
 
         emitter.stage("verify", stage_offset + 3, stage_total, "verify master with ffprobe")
         try:
-            out, _ = _verify_master(partial, g, analysis, eff, colorimetry, audio_tracks, source_info, emitter)
+            out, _ = _verify_master(partial, g, analysis, eff, colorimetry, audio_tracks, source_info, emitter, aplan=aplan, source=job.input)
         except EncodeError:
             _remove(partial)
             raise
@@ -499,7 +549,7 @@ def run_job(job: JobSpec, *, emitter: Emitter, cancel: CancelToken) -> JobResult
     kwargs = qtgmc.build_kwargs(eff, eff.preset, v.width, v.height)  # type: ignore[arg-type]
     result = JobResult(input=job.input, analysis=analysis, effective_master=eff, qtgmc_kwargs=kwargs)
     result.warnings.extend(qtgmc.fidelity_warnings(eff))
-    result.warnings.extend(_audio_flags(analysis)[1])
+    result.audio_tracks = audiomodes.plan(eff.audio, analysis.probe.audio).tracks  # validates: coded error before any output
 
     from . import jobs as jobs_mod
 
