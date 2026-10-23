@@ -1,0 +1,67 @@
+name: CI
+
+# Fast checks on every push to master and every pull request, in the uv image (Debian, no Arch stack).
+# The full test suite needs ffmpeg and the native plugins and runs locally (see DEV.md); the package
+# build and smoke test run in aur.yml (releases) and arch-canary.yml (weekly).
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Checks (uv image)
+    runs-on: ubuntu-latest
+    container: ghcr.io/astral-sh/uv:python3.14-trixie
+    timeout-minutes: 15
+    env:
+      UV_LINK_MODE: copy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint
+        run: |
+          # tool versions are pinned so a new release cannot turn the checks red; bump them on purpose
+          uvx ruff@0.17.2 check .
+          uvx --from actionlint-py==1.7.12.25 actionlint
+          uvx --from shellcheck-py==0.11.0.1 shellcheck --severity=warning packaging/*.sh packaging/qtgmc-6ui.launcher
+
+      - name: Lockfile and generated PKGBUILD blocks
+        run: |
+          uv lock --check
+          python3 -I packaging/sync-pkgbuild.py --check
+
+      - name: Install the test dependencies
+        run: |
+          uv venv --python 3.14 /tmp/venv
+          uv export --frozen --no-emit-project --no-hashes -o /tmp/locked.txt
+          # what Arch provides (excluded from uv.lock) comes from PyPI here; --no-config because
+          # [tool.uv] exclude-dependencies of this repo would skip exactly these packages
+          uv pip install --no-config --python /tmp/venv/bin/python -r /tmp/locked.txt \
+            psutil platformdirs numpy rich cattrs attrs tomli-w typing-extensions pytest VapourSynth
+
+      - name: Tests that need no Arch stack
+        run: |
+          PYTHONPATH=src /tmp/venv/bin/python -m pytest -p no:cacheprovider -q \
+            --ignore-glob='tests/test_gui_*' -m "not needs_sandbox and not needs_qtgmc and not gui"
+
+      - name: Build the wheel and check its contents
+        run: |
+          uv build --wheel --out-dir /tmp/dist
+          python3 - <<'PY'
+          import glob, zipfile
+          names = zipfile.ZipFile(glob.glob("/tmp/dist/*.whl")[0]).namelist()
+          need = ["qtgmc_6ui/py.typed", "qtgmc_6ui/data/mux_seed.json", "qtgmc_6ui/gui/resources/qtgmc-6ui.svg"]
+          missing = [n for n in need if n not in names]
+          profiles = [n for n in names if n.startswith("qtgmc_6ui/data/profiles/") and n.endswith(".toml")]
+          assert not missing and len(profiles) >= 7, (missing, len(profiles))
+          print(f"wheel ok: {len(names)} files, {len(profiles)} built-in profiles")
+          PY

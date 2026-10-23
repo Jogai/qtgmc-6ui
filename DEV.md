@@ -29,6 +29,10 @@ packaging/test-package.sh --no-chroot --steps build,namcap     # subset
 
 The packaging notes (generated PKGBUILD blocks, `sync-pkgbuild.py`, the release steps, namcap warnings and the known risks) are in [packaging/aur/PKGBUILD.md](packaging/aur/PKGBUILD.md).
 
+## Continuous integration
+
+Three workflows run on GitHub. `ci.yml` runs on every push to master and every pull request, in the `ghcr.io/astral-sh/uv` image (Debian): ruff, actionlint and shellcheck (their versions are pinned in the workflow), `uv lock --check`, `sync-pkgbuild.py --check`, the roughly 400 tests that need neither ffmpeg nor the native plugins, and a wheel build with a content check. It takes about a minute. The full suite (750 tests, about 5 minutes) needs the Arch stack and runs only locally; see Setup. `aur.yml` builds and smoke-tests the package on Arch for each release tag, and `arch-canary.yml` does the same for master every Wednesday against current Arch.
+
 ## Releasing
 
 Tag `vX.Y.Z` (it must equal `__version__`). `.github/workflows/aur.yml` then builds and smoke-tests the package on Arch (`packaging/ci-smoke.sh`) and pushes `PKGBUILD` and `.SRCINFO` to the AUR; the one-time setup is described in `packaging/aur/PKGBUILD.md`.
