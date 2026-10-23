@@ -1,0 +1,53 @@
+# git-cliff configuration: drafts the changelog of the next release from the commits since the last tag.
+# Usage: DEV.md, section "Changelog draft". Commits are free-form with a module prefix ("gui: ...",
+# "plugins: ..."), so they are grouped by area; Conventional Commits types work too.
+
+[changelog]
+header = ""
+body = """
+{% if version %}\
+## {{ version | trim_start_matches(pat="v") }} - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## Unreleased
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}\
+- {{ commit.message | split(pat="\n") | first | trim | upper_first }} ({{ commit.id | truncate(length=7, end="") }})
+{% endfor %}\
+{% endfor %}\
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+filter_commits = false
+tag_pattern = "v[0-9]*"
+sort_commits = "oldest"
+# two-word prefixes ("audio modes: ...") become one word so they parse like the others
+commit_preprocessors = [
+  { pattern = '^([A-Za-z]+) ([A-Za-z]+): ', replace = "${1}-${2}: " },
+]
+commit_parsers = [
+  # not changelog material
+  { message = "^Release ", skip = true },
+  { message = "^Initial commit", skip = true },
+  { message = "^fixup!", skip = true },
+  { message = "^Merge ", skip = true },
+  # Conventional Commits types (if ever used)
+  { field = "raw_message", pattern = "^feat(\\(.+\\))?!?:", group = "<!-- 00 -->Added" },
+  { field = "raw_message", pattern = "^fix(\\(.+\\))?!?:", group = "<!-- 01 -->Fixed" },
+  # our module prefixes (the text before the first colon of the subject)
+  { field = "raw_message", pattern = "^gui\\b[^:]*:", group = "<!-- 10 -->GUI" },
+  { field = "raw_message", pattern = "^(analysis|classify|telecine|idet|ffprobe|colorimetry)\\b[^:]*:", group = "<!-- 11 -->Analysis" },
+  { field = "raw_message", pattern = "^(vs|qtgmc|graph|master|pipeline|doctor|preview|jobs|cli|commands|audio-modes?|master-audio|runtime|esmux|encoders|muxmatrix|profiles|viewcopy|models)\\b[^:]*:", group = "<!-- 12 -->Pipeline and CLI" },
+  { field = "raw_message", pattern = "^(osdep|osdep_windows|cachegc|deps|stdlib/Qt)\\b[^:]*:", group = "<!-- 13 -->Internals" },
+  { field = "raw_message", pattern = "^(plugins|packaging|scaffold|project)\\b[^:]*:", group = "<!-- 14 -->Packaging" },
+  { field = "raw_message", pattern = "^(ci|gitignore|lint|git-cliff)\\b[^:]*:", group = "<!-- 15 -->CI and repository" },
+  { field = "raw_message", pattern = "^(docs|README)\\b[^:]*:", group = "<!-- 16 -->Documentation" },
+  { field = "raw_message", pattern = "^tests?\\b[^:]*:", group = "<!-- 17 -->Tests" },
+  { message = ".*", group = "<!-- 99 -->Other" },
+]

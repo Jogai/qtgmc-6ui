@@ -33,6 +33,10 @@ The packaging notes (generated PKGBUILD blocks, `sync-pkgbuild.py`, the release 
 
 Three workflows run on GitHub. `ci.yml` runs on every push to master and every pull request, in the `ghcr.io/astral-sh/uv` image (Debian): ruff, actionlint and shellcheck (their versions are pinned in the workflow), `uv lock --check`, `sync-pkgbuild.py --check`, the roughly 400 tests that need neither ffmpeg nor the native plugins, and a wheel build with a content check. It takes about a minute. The full suite (750 tests, about 5 minutes) needs the Arch stack and runs only locally; see Setup. `aur.yml` builds and smoke-tests the package on Arch for each release tag, and `arch-canary.yml` does the same for master every Wednesday against current Arch.
 
+## Changelog draft
+
+`cliff.toml` configures [git-cliff](https://github.com/orhun/git-cliff), which drafts the changelog of the next release from the commits since the last tag. Commits are grouped by area (GUI, Analysis, Pipeline and CLI, Internals, Packaging, CI and repository, Documentation, Tests) from the module prefix of each subject, with the prefix removed from the text; Conventional Commits types (`feat:`, `fix:`) get their own Added and Fixed groups if they are ever used. Release commits, fixups and merges are left out. Print the draft with `git cliff --unreleased --tag v0.4.0` (Arch: `pacman -S git-cliff`; elsewhere: `uvx git-cliff`) and edit it into the release commit description. The grouping is by area and not by Fixed or Changed, so the wording still needs a human.
+
 ## Releasing
 
 Tag `vX.Y.Z` (it must equal `__version__`). `.github/workflows/aur.yml` then builds and smoke-tests the package on Arch (`packaging/ci-smoke.sh`) and pushes `PKGBUILD` and `.SRCINFO` to the AUR; the one-time setup is described in `packaging/aur/PKGBUILD.md`.
