@@ -97,7 +97,7 @@ def test_audio_tracks_and_duration(name, tracks, masters):
     assert len(src.audio) == tracks
     assert len(out.audio) == tracks
     for i in range(tracks):
-        assert out.audio[i]["codec_name"] == "flac"
+        assert out.audio[i]["codec_name"] == src.audio[i]["codec_name"]  # copy: the source codec
         assert int(out.audio[i]["sample_rate"]) == 48000
         assert abs(audio_duration(masters(name), i) - audio_duration(get_clip(name), i)) < 0.03
         assert out.audio[i]["channels"] == src.audio[i]["channels"]

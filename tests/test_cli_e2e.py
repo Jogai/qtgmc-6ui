@@ -114,7 +114,7 @@ def test_no_master_reference(reference_clip: Path, tmp_path: Path) -> None:
     r = subprocess.run(args, capture_output=True, text=True, timeout=1800, env=_env(tmp_path))
     assert r.returncode == 0, r.stderr[-3000:]
     evs = parse_events(r.stdout)
-    assert evs[0].data["outputs"] == [str(out / "test_input.deint.mp4-h264-aac.mp4")]
+    assert evs[0].data["outputs"] == [str(out / f"{reference_clip.stem}.deint.mp4-h264-aac.mp4")]
     res = [e for e in evs if e.ev == "result"][0].data["data"]
     assert [(o["kind"], o["frames"]) for o in res["outputs"]] == [("view", 548)]
     assert sorted(x.name for x in out.iterdir()) == ["test_input.deint.mp4-h264-aac.mp4"]

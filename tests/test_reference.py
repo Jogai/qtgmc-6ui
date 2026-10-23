@@ -46,7 +46,7 @@ def _check_master(out, ref):
     assert mi.codec == "ffv1"
     assert len(mi.audio) == 1
     a = mi.audio[0]
-    assert a["codec_name"] == "flac"
+    assert a["codec_name"] == "pcm_s16le"  # --audio copy keeps the source PCM
     assert int(a["sample_rate"]) == REFERENCE_AUDIO["sample_rate"]
     assert a["channels"] == REFERENCE_AUDIO["channels"]
     assert abs(audio_duration(out) - REFERENCE_DURATION_S) <= 0.02

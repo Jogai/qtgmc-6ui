@@ -52,6 +52,7 @@ def test_plan_copy_pcm_flac_alac() -> None:
     assert p.ffmpeg_args() == ["-c:a:0", "flac", "-compression_level:a:0", "8", "-c:a:1", "flac", "-compression_level:a:1", "8", "-strict", "experimental"]
     p = audiomodes.plan("flac", [_a("pcm_f32le", "flt", 32)], probe_mux=None)
     assert p.warnings and p.warnings[0][0] == "audio" and "floating point" in p.warnings[0][1]
+    assert not p.tracks[0].lossless and not p.lossless  # 24-bit integer FLAC of float samples is not bit-exact
     # alac: s16p / s32p, float refused, odd layouts refused
     assert audiomodes.plan("alac", [_a()], probe_mux=None).ffmpeg_args() == ["-c:a:0", "alac", "-sample_fmt:a:0", "s16p"]
     assert audiomodes.plan("alac", [_a("pcm_s24le", "s32", 24, 6, "5.1")], probe_mux=None).ffmpeg_args()[-1] == "s32p"
@@ -92,7 +93,7 @@ def test_plan_copy_fallback_uses_mux_probe() -> None:
     assert p.tracks[0].codec == "flac" and p.tracks[0].expect == "flac" and "FLAC" in p.tracks[0].note
     assert p.tracks[1].codec == "copy"
     assert p.warnings[0][0] == "audio_copy_unsupported" and "mp3" in p.warnings[0][1]
-    assert p.lossless
+    assert p.tracks[1].lossless and not p.tracks[0].lossless  # mp3 decodes to float: 24-bit FLAC is not bit-exact
     # a 32-bit source that falls back needs the strict flag, float a warning
     p = audiomodes.plan("copy", [_a("pcm_s32le", "s32", 32)], probe_mux=lambda c, e: MuxProbe(c, e, MuxVerdict.FAIL))
     assert p.strict_experimental and p.ffmpeg_args()[-2:] == ["-strict", "experimental"]

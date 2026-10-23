@@ -19,6 +19,7 @@ from qtgmc_6ui import pipeline, vsenv
 from qtgmc_6ui.errors import BlockedError, CancelledError, ErrorCode, ExitCode, OutputError
 from qtgmc_6ui.events import Emitter, Event
 from qtgmc_6ui.models import (
+    AudioMode,
     FieldOrder,
     FieldOrderChoice,
     JobSpec,
@@ -152,7 +153,9 @@ def test_reference_master(env: Path, reference_clip: Path) -> None:
     assert v["codec_name"] == "ffv1" and v["pix_fmt"] == "yuv420p"
     assert (v["color_space"], v["color_primaries"], v["color_transfer"], v["color_range"]) == ("bt470bg", "bt470bg", "bt709", "tv")
     assert v.get("field_order", "progressive") == "progressive"
-    assert len(a) == 1 and a[0]["codec_name"] == "flac"
+    assert len(a) == 1 and a[0]["codec_name"] == "pcm_s16le"  # audio copy (the default)
+    assert res.audio_tracks and res.audio_tracks[0].codec == "copy" and res.audio_tracks[0].expect == "pcm_s16le"
+    assert any("audio_verified" in e.data["line"] for e in rec.of("log"))
     assert int(a[0]["sample_rate"]) == REFERENCE_AUDIO["sample_rate"] and a[0]["channels"] == REFERENCE_AUDIO["channels"]
     assert abs(stream_duration(a[0]) - REFERENCE_DURATION_S) < 0.02
     assert abs(stream_duration(v) - REFERENCE_DURATION_S) < 0.02
@@ -395,7 +398,7 @@ def test_32bit_and_float_audio(env: Path, tmp_path: Path) -> None:
                          "-map", "0:v", "-map", "1:a", "-map", "2:a", "-vf", "tinterlace=mode=interleave_top,setfield=tff,format=yuv420p",
                          "-t", "1", "-c:v", "ffv1", "-c:a:0", "pcm_s32le", "-c:a:1", "pcm_f32le", str(clip)], check=True)
     out = env / "aud32.deint.mkv"
-    res, rec = _run(_job(clip, out, FieldOrder.TFF))
+    res, rec = _run(_job(clip, out, FieldOrder.TFF, audio=AudioMode.FLAC))
     a = [s for s in ffprobe_json(str(out))["streams"] if s["codec_type"] == "audio"]
     assert [s["codec_name"] for s in a] == ["flac", "flac"]
     assert int(a[0]["bits_per_raw_sample"]) == 32 and int(a[0]["sample_rate"]) == 96000
