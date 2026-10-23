@@ -113,7 +113,7 @@ def _frac(f: Fraction) -> str:
     return f"{f.numerator}/{f.denominator}"
 
 
-def _even(x: float) -> int:
+def _even(x: float | Fraction) -> int:
     return max(2, int(round(x / 2.0)) * 2)
 
 
@@ -378,7 +378,7 @@ def _stale_temps(output: str) -> list[str]:
     """``_temp`` files of ``output`` left by processes that no longer run (a killed CLI)."""
     p = Path(output)
     prefix = f".{p.name}.tmp"
-    out = []
+    out: list[str] = []
     try:
         names = os.listdir(p.parent)
     except OSError:

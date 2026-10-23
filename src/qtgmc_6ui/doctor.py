@@ -144,21 +144,21 @@ def run(*, load_plugins: bool = True, smoke: bool = True) -> DoctorReport:
                 plugins = list(bi.plugins)
                 if not any(p.origin == "repo" for p in plugins):
                     plugins = list(vsenv.repo_plugins()) + plugins
-                for p in plugins:
-                    ns = p.namespace or next((n for n, r in table.items() if r["path"] == vc.loaded.get(n, "")), "")
+                for pl in plugins:
+                    ns = pl.namespace or next((n for n, r in table.items() if r["path"] == vc.loaded.get(n, "")), "")
                     loaded = ns in vc.loaded if ns else False
                     row = table.get(ns, {}) if loaded else {}
-                    entry = {"name": p.name, "loaded": loaded, "error": vc.skipped.get(p.name, ""), "path": vc.loaded.get(ns, ""),
+                    entry = {"name": pl.name, "loaded": loaded, "error": vc.skipped.get(pl.name, ""), "path": vc.loaded.get(ns, ""),
                              "namespace": ns, "identifier": row.get("identifier", ""), "version": row.get("version", ""),
-                             "pinned": p.version, "required": p.required, "origin": p.origin}
+                             "pinned": pl.version, "required": pl.required, "origin": pl.origin}
                     rep.plugins.append(entry)
                     if loaded:
-                        st, detail = Status.OK, f"{ns} {row.get('identifier', '')} {row.get('version', '')} ({p.origin} {p.version}) {entry['path']}"
-                    elif p.required:
-                        st, detail = Status.FAIL, vc.skipped.get(p.name, "not loaded")
+                        st, detail = Status.OK, f"{ns} {row.get('identifier', '')} {row.get('version', '')} ({pl.origin} {pl.version}) {entry['path']}"
+                    elif pl.required:
+                        st, detail = Status.FAIL, vc.skipped.get(pl.name, "not loaded")
                     else:
-                        st, detail = Status.SKIP, vc.skipped.get(p.name, "optional, not loaded")
-                    checks.append(DoctorCheck(f"plugin:{p.name}", f"plugin {p.name}", st, detail,
+                        st, detail = Status.SKIP, vc.skipped.get(pl.name, "optional, not loaded")
+                    checks.append(DoctorCheck(f"plugin:{pl.name}", f"plugin {pl.name}", st, detail,
                                               "reinstall/rebuild qtgmc-6ui" if st == Status.FAIL else ""))
                 extra = sorted(set(table) - set(vc.loaded) - {"std", "resize", "text"})
                 if extra:

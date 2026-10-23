@@ -112,13 +112,13 @@ def _save(ffmpeg: str) -> None:
     with _lock:
         for k, p in sorted(t.items()):
             rows.append({**to_dict(p), "kind": k.split(":", 1)[0]})
-    p = _cache_file(build)
+    path = _cache_file(build)
     try:
-        p.parent.mkdir(parents=True, exist_ok=True)
-        osdep.atomic_write_text(p, json.dumps({"schema": 1, "ffmpeg_version": build, "probes": rows}, indent=0))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        osdep.atomic_write_text(path, json.dumps({"schema": 1, "ffmpeg_version": build, "probes": rows}, indent=0))
     except OSError:
         pass
-    cachegc.prune_ffmpeg_caches([p])
+    cachegc.prune_ffmpeg_caches([path])
 
 
 def seed_from_package_data() -> None:

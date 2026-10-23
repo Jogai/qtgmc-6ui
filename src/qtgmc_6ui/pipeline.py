@@ -232,7 +232,7 @@ def source_timing(info: dict[str, Any]) -> dict[str, Any]:
     """Start offsets of a probed file: how much later than the earliest stream the first video
     stream starts (``video_offset_s``), and the video-minus-first-audio offset (``av_offset_s``)."""
     streams = info.get("streams", [])
-    starts = [s for s in ((_f(s.get("start_time")), s.get("codec_type")) for s in streams) if s[0] is not None]
+    starts = [(st, s.get("codec_type")) for s in streams if (st := _f(s.get("start_time"))) is not None]
     fmt_start = _f(info.get("format", {}).get("start_time"))
     earliest = min([st for st, _ in starts] + ([fmt_start] if fmt_start is not None else []), default=0.0)
     video = next((st for st, kind in starts if kind == "video"), None)

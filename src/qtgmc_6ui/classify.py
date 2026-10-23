@@ -258,9 +258,9 @@ def classify_file(windows: list[IdetWindow], probe: ProbeInfo) -> tuple[Classifi
         )
 
     warnings.append(NO_INTERLACING_WARNING)
-    best = max(tff, bff, prog)
+    top = max(tff, bff, prog)
     return (
-        Classification(ContentClass.UNDETERMINED, None, share(best), reasons, warnings),
+        Classification(ContentClass.UNDETERMINED, None, share(top), reasons, warnings),
         confirm(None),
     )
 

@@ -125,7 +125,7 @@ class QueuePanel(QWidget):
         row = self.model.row_of(cur) if cur else -1
         self.up_button.setEnabled(row > 0)
         self.down_button.setEnabled(0 <= row < self.model.rowCount() - 1)
-        self.reanalyze_button.setEnabled(bool(cur) and cur.status not in busy | {JobStatus.ANALYZING, JobStatus.WAITING})
+        self.reanalyze_button.setEnabled(cur is not None and cur.status not in busy | {JobStatus.ANALYZING, JobStatus.WAITING})
         self.empty_hint.setVisible(self.model.rowCount() == 0)
 
     # ------------------------------------------------------------------ actions

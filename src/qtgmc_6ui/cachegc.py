@@ -25,6 +25,7 @@ import os
 import time
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 DAY = 86400.0
 PRUNE_INTERVAL_S = 3600.0  # per directory, shared by all processes through the stamp file
@@ -32,12 +33,12 @@ STAMP = ".pruned"
 TMP_PATTERN = ".*.tmp"  # osdep.atomic_write_* temp files
 TMP_MAX_AGE_S = DAY
 
-ANALYSIS_LIMITS = {"max_age_s": 180 * DAY, "max_files": 5000, "max_bytes": 64 * 2**20}
-BS_INDEX_LIMITS = {"max_age_s": 180 * DAY, "max_bytes": 1024 * 2**20}
+ANALYSIS_LIMITS: dict[str, Any] = {"max_age_s": 180 * DAY, "max_files": 5000, "max_bytes": 64 * 2**20}
+BS_INDEX_LIMITS: dict[str, Any] = {"max_age_s": 180 * DAY, "max_bytes": 1024 * 2**20}
 FFMPEG_CACHE_KEEP = 3  # newest matrix-*/encoders-* files (ffmpeg builds) kept per kind
 LINKS_MAX_AGE_S = 30 * DAY
-PREVIEW_LIMITS = {"max_age_s": 30 * DAY, "max_bytes": 500 * 2**20}
-GUI_JOBS_LIMITS = {"max_age_s": 7 * DAY, "max_files": 200}
+PREVIEW_LIMITS: dict[str, Any] = {"max_age_s": 30 * DAY, "max_bytes": 500 * 2**20}
+GUI_JOBS_LIMITS: dict[str, Any] = {"max_age_s": 7 * DAY, "max_files": 200}
 
 
 def touch(path: str | os.PathLike[str]) -> None:
@@ -220,7 +221,7 @@ def prune_links(*, min_interval_s: float = PRUNE_INTERVAL_S) -> list[Path]:
 
 def prune_preview_cache(directory: str | os.PathLike[str], *, max_bytes: int | None = None) -> list[Path]:
     """GUI preview PNGs (run off the GUI thread at startup)."""
-    limits = dict(PREVIEW_LIMITS)
+    limits: dict[str, Any] = dict(PREVIEW_LIMITS)
     if max_bytes is not None:
         limits["max_bytes"] = max_bytes
     return prune(directory, "*.png", **limits) + prune_tmp(directory)

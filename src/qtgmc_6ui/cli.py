@@ -52,7 +52,7 @@ class _Parser(argparse.ArgumentParser):
 
     last_error: str = ""
 
-    def error(self, message: str):  # type: ignore[override]
+    def error(self, message: str):
         _Parser.last_error = f"{self.prog}: {message}"
         super().error(message)
 

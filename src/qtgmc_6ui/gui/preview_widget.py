@@ -279,6 +279,7 @@ class PreviewWidget(QWidget):
             self.pane_b.set_pixmap(None, "")
             self._stop_server()
             return
+        assert item is not None and item.analysis is not None  # usable, checked above
         frames = item.analysis.probe.video.nb_frames or 1
         if changed:
             for w in (self.slider, self.spin):
@@ -450,7 +451,8 @@ class PreviewWidget(QWidget):
 
     def _on_server_died(self, msg: str) -> None:
         self._server_failures += 1
-        self._server.deleteLater()
+        if self._server is not None:
+            self._server.deleteLater()
         self._server = None
         if self._inflight is not None and not isinstance(self._inflight[0], CliCall):
             self._inflight = None

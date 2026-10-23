@@ -218,7 +218,7 @@ def _pump_lines(stream: IO[bytes], on_line: Callable[[str], None]) -> None:
         pass
 
 
-def _tool_missing(cmd: Sequence[str], exc: OSError) -> ComponentError:
+def _tool_missing(cmd: Sequence[str | bytes], exc: OSError) -> ComponentError:
     tool = os.path.basename(str(cmd[0]))
     hints = {
         "ffmpeg": f"install ffmpeg ({osdep.install_hint('ffmpeg')})",
@@ -432,9 +432,9 @@ def run_capture(cmd: Sequence[str | bytes], *, timeout: float | None = None, env
     try:
         while True:
             try:
-                o, e = p.communicate(timeout=0.1)
+                o, er = p.communicate(timeout=0.1)
                 out_b += o or b""
-                err_b += e or b""
+                err_b += er or b""
                 break
             except subprocess.TimeoutExpired:
                 tok = _default_cancel
@@ -445,9 +445,9 @@ def run_capture(cmd: Sequence[str | bytes], *, timeout: float | None = None, env
                 else:
                     continue
                 osdep.signal_tree(p, StopLevel.FORCE)
-                o, e = p.communicate()
+                o, er = p.communicate()
                 out_b += o or b""
-                err_b += e or b""
+                err_b += er or b""
                 break
     finally:
         _unregister(p)

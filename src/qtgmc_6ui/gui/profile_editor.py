@@ -467,10 +467,10 @@ class ProfileEditor(QDialog):
         self.aenc_combo.add("copy — keep the master's FLAC audio", "copy", *self._audio_verdict(c, "flac"))
         if akey not in anames and akey != "copy":
             anames.append(akey)
-        for n in anames:
-            e = self.catalog.encoders.get(n)
-            verdict, why = self.catalog.verdict(c, n)
-            self.aenc_combo.add(_label(n, e.description if e else ""), n, verdict != "fail", why or self._unknown_tip(verdict, loading))
+        for name in anames:
+            e = self.catalog.encoders.get(name)
+            verdict, why = self.catalog.verdict(c, name)
+            self.aenc_combo.add(_label(name, e.description if e else ""), name, verdict != "fail", why or self._unknown_tip(verdict, loading))
         self.aenc_combo.select_data(akey)
         an = self.aenc_combo.disabled_count()
         self.aenc_note.setText(f"{an} encoder(s) greyed out: {c} cannot hold them (hover for the reason)." if an else "")
@@ -630,13 +630,13 @@ class ProfileEditor(QDialog):
             self.status.setText("<span style='color:#c62828'>" + "<br>• ".join(_esc(p) for p in problems) + "</span>")
             return
         prof = self.build_profile()
-        editing = not self.is_new and self.original is not None
+        original = None if self.is_new else self.original
         self.buttons.setEnabled(False)
         self.status.setText("Saving…")
         self.catalog.save_profile(
             prof, lambda ok, probs, path: self._after_save(prof, ok, probs),
-            overwrite=editing and prof.id == self.original.id,
-            replaces=self.original.id if editing else None,
+            overwrite=original is not None and prof.id == original.id,
+            replaces=original.id if original is not None else None,
         )
 
     def _after_save(self, prof: Profile, ok: bool, problems: list[str]) -> None:

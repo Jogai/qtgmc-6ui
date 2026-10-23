@@ -239,7 +239,7 @@ class SettingsPanel(QScrollArea):
             try:
                 ms.audio = AudioMode(mode)
             except ValueError:  # a mode added by a newer backend: pass the id through unchanged
-                ms.audio = mode
+                ms.audio = mode  # type: ignore[assignment]
         return ms
 
     # ------------------------------------------------------------------ audio

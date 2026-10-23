@@ -216,8 +216,8 @@ class MainWindow(QMainWindow):
         master = self.settings_panel.master_settings()
         if item.field_order_override:
             master.field_order = FieldOrderChoice(item.field_order_override)
-        elif item.force and item.effective_field_order():
-            master.field_order = FieldOrderChoice(item.effective_field_order())
+        elif item.force and (effective := item.effective_field_order()):
+            master.field_order = FieldOrderChoice(effective)
         item.summary = self.master_summary()
         return JobSpec(
             input=item.path,

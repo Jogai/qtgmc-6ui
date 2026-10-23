@@ -241,16 +241,17 @@ class AnalysisPanel(QScrollArea):
         self.order_combo.setItemText(0, f"Detected: {detected.upper()}" if detected else "Detected: unknown — choose one")
         idx = {None: 0, "tff": 1, "bff": 2}[item.field_order_override]
         self.order_combo.setCurrentIndex(idx)
+        override = item.field_order_override or ""
         overridden = item.field_order_override is not None
         self.override_badge.setVisible(overridden)
         self.order_combo.setStyleSheet("QComboBox { border: 2px solid #b26a00; border-radius: 3px; }" if overridden else "")
-        if overridden and detected and detected != item.field_order_override:
+        if overridden and detected and detected != override:
             self.override_note.setText(
                 f"You override the detected field order ({detected.upper()}) with "
-                f"{item.field_order_override.upper()}. A wrong field order makes motion judder; confirm in the preview."
+                f"{override.upper()}. A wrong field order makes motion judder; confirm in the preview."
             )
         elif overridden:
-            self.override_note.setText(f"Field order set manually to {item.field_order_override.upper()}.")
+            self.override_note.setText(f"Field order set manually to {override.upper()}.")
         else:
             self.override_note.setText("")
         self.override_note.setVisible(bool(self.override_note.text()))

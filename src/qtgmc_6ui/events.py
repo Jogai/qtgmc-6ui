@@ -36,7 +36,7 @@ import json
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Any, Protocol, TextIO
+from typing import IO, Any, Protocol, TextIO
 
 EVENTS_SCHEMA = 1
 
@@ -86,7 +86,7 @@ class EventSink(Protocol):
 class JsonLinesSink:
     """Writes events as JSON lines to ``stream`` (stdout by default), flushing each line."""
 
-    def __init__(self, stream: TextIO | None = None) -> None:
+    def __init__(self, stream: IO[str] | None = None) -> None:
         self.stream = stream or sys.stdout
         self.t0 = time.monotonic()
 
