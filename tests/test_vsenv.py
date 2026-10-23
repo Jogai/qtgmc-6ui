@@ -70,11 +70,14 @@ def test_check_abi_messages() -> None:
     assert vsenv.check_abi(ok) == []
     bad = BuildInfo(python_minor=[3, 9], vapoursynth_core=70, vapoursynth_api=[3, 0])
     problems = vsenv.check_abi(bad)
-    assert len(problems) == 3
+    assert len(problems) == 2
     assert "Arch updated python" in problems[0] and "3.9" in problems[0] and "reinstall/rebuild" in problems[0]
-    assert "Arch updated vapoursynth" in problems[1] and "R70" in problems[1]
-    assert "API" in problems[2]
+    assert "Arch updated vapoursynth" in problems[1] and "R70" in problems[1] and "API" in problems[1]
     assert BuildInfo() and vsenv.check_abi(BuildInfo()) == []  # unknown fields are not compared
+    # a release change with the same API is not a problem (reviews/vs-r81-compat.md), only a notice
+    older = BuildInfo(python_minor=list(sys.version_info[:2]), vapoursynth_core=vs.__version__.release_major - 1,
+                      vapoursynth_api=[vs.__api_version__.api_major, vs.__api_version__.api_minor])
+    assert vsenv.check_abi(older) == [] and len(vsenv.abi_warnings(older)) == 1
 
 
 @pytest.mark.needs_sandbox
@@ -126,10 +129,11 @@ def test_abi_mismatch_is_named_error(no_plugins_dir: Path) -> None:
     assert ei.value.code == ErrorCode.PYTHON_VERSION_MISMATCH
     assert "Arch updated python" in ei.value.message
     assert vsenv.current() is None
-    bad = BuildInfo(python_minor=list(sys.version_info[:2]), vapoursynth_core=12)
+    bad = BuildInfo(python_minor=list(sys.version_info[:2]), vapoursynth_core=12, vapoursynth_api=[3, 0])
     with pytest.raises(ComponentError) as ei:
         vsenv.open_core(build_info=bad)
     assert ei.value.code == ErrorCode.VS_VERSION_MISMATCH
+    assert vsenv.current() is None
 
 
 @pytest.mark.needs_sandbox

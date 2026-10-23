@@ -120,6 +120,7 @@ class VSCore:
     build_info: BuildInfo | None = None
     environment: Any = None
     skipped: dict[str, str] = field(default_factory=dict)  # optional plugin name -> why not loaded
+    abi_warnings: list[str] = field(default_factory=list)  # release notices (not blocking), see abi_warnings()
 
     def has(self, namespace: str) -> bool:
         return namespace in self.loaded
@@ -176,7 +177,7 @@ def open_core(
         env = pol.api.create_environment(vs.DISABLE_AUTO_LOADING)
         pol.current = env
         core = vs.core.core
-        handle = VSCore(core=core, build_info=build_info, environment=env)
+        handle = VSCore(core=core, build_info=build_info, environment=env, abi_warnings=abi_warnings(build_info) if check_abi else [])
         try:
             if not core.flags & vs.DISABLE_AUTO_LOADING:
                 raise ComponentError(ErrorCode.INTERNAL, "VapourSynth core was created with autoload enabled")
@@ -243,9 +244,19 @@ def _load_all(handle: VSCore, plugin_dir: Path, load_optional: bool) -> None:
         handle.loaded[ns] = str(path)
 
 
+def _running_vs() -> tuple[int, list[int]]:
+    vs = import_vs()
+    return int(vs.__version__.release_major), [int(vs.__api_version__.api_major), int(vs.__api_version__.api_minor)]
+
+
 def check_abi(build_info: BuildInfo) -> list[str]:
-    """Compare running python minor / VS core / API versions with build-info; return problems
-    as user-facing lines ("Arch updated python to 3.15; reinstall/rebuild qtgmc-6ui")."""
+    """Blocking problems between the running python/VapourSynth and build-info, as user-facing
+    lines ("Arch updated python to 3.15; reinstall/rebuild qtgmc-6ui").
+
+    Blocks on: a different python minor; a different VapourSynth API major; a running API minor
+    LOWER than the build's (plugins may need the newer API).  A core release number change alone
+    (R80 -> R81 with API 4.3 unchanged) is NOT a problem: the core loads every plugin of the same
+    API major whose minor is <= its own (reviews/vs-r81-compat.md); see abi_warnings()."""
     problems: list[str] = []
     run_py = list(sys.version_info[:2])
     if build_info.python_minor and run_py != list(build_info.python_minor):
@@ -253,19 +264,48 @@ def check_abi(build_info: BuildInfo) -> list[str]:
         problems.append(
             f"Arch updated python to {run_py[0]}.{run_py[1]} (qtgmc-6ui was built for {built}); reinstall/rebuild qtgmc-6ui"
         )
-    vs = import_vs()
-    core_major = int(vs.__version__.release_major)
-    if build_info.vapoursynth_core and core_major != build_info.vapoursynth_core:
+    core_major, api = _running_vs()
+    built_api = list(build_info.vapoursynth_api or [])
+    if built_api and (api[0] != built_api[0] or (len(built_api) > 1 and api[1] < built_api[1])):
+        built = ".".join(map(str, built_api))
         problems.append(
-            f"Arch updated vapoursynth to R{core_major} (qtgmc-6ui was built for R{build_info.vapoursynth_core}); reinstall/rebuild qtgmc-6ui"
-        )
-    api = [int(vs.__api_version__.api_major), int(vs.__api_version__.api_minor)]
-    if build_info.vapoursynth_api and api[0] != build_info.vapoursynth_api[0]:
-        built = ".".join(map(str, build_info.vapoursynth_api))
-        problems.append(
-            f"VapourSynth API changed to R{api[0]}.{api[1]} (plugins were built for R{built}); reinstall/rebuild qtgmc-6ui"
+            f"Arch updated vapoursynth to R{core_major} with API R{api[0]}.{api[1]} (qtgmc-6ui was built for R{build_info.vapoursynth_core or '?'}, "
+            f"API R{built}, which the bundled plugins need); reinstall/rebuild qtgmc-6ui"
         )
     return problems
+
+
+def abi_warnings(build_info: BuildInfo) -> list[str]:
+    """Non-blocking notices: the VapourSynth release differs from the build's while the API
+    major is equal and the API minor is not lower, so the bundled plugins stay compatible."""
+    if check_abi(build_info) or not build_info.vapoursynth_core:
+        return []
+    core_major, api = _running_vs()
+    if core_major == build_info.vapoursynth_core:
+        return []
+    return [
+        f"VapourSynth is R{core_major}, qtgmc-6ui was built against R{build_info.vapoursynth_core}; API {api[0]}.{api[1]} "
+        "is unchanged so the bundled plugins stay compatible; a rebuild is not required"
+    ]
+
+
+_abi_notice_cache: dict[str, Any] = {}
+
+
+def abi_notice(build_info: BuildInfo | None = None) -> tuple[str, str] | None:
+    """(message, hint) of the one ``vapoursynth_updated`` warning a CLI run emits, or None.
+    Memoised per process; never raises (a missing build-info or module is reported elsewhere)."""
+    if "notice" not in _abi_notice_cache:
+        notice: tuple[str, str] | None = None
+        try:
+            bi = build_info or buildinfo.load_or_dev()
+            lines = abi_warnings(bi)
+            if lines:
+                notice = (lines[0], "nothing to do; `qtgmc-6ui doctor` shows every plugin loading under the new release")
+        except Exception:  # noqa: BLE001 - startup notices must never break a command
+            notice = None
+        _abi_notice_cache["notice"] = notice
+    return _abi_notice_cache["notice"]
 
 
 _check_abi = check_abi  # open_core() has a parameter of the same name

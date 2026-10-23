@@ -124,6 +124,24 @@ class GuardedSink:
             self.lock.release()
 
 
+class _NoticeEmitter(Emitter):
+    """Emitter that follows the ``start`` event with the process-wide startup notices, once:
+    ``vapoursynth_updated`` when the running VapourSynth release differs from the build's while
+    the API stays compatible (vsenv.abi_notice)."""
+
+    _notified = False
+
+    def start(self, command: str, input: str, outputs: list[str]) -> None:
+        super().start(command, input, outputs)
+        if not _NoticeEmitter._notified:
+            _NoticeEmitter._notified = True
+            from . import vsenv
+
+            notice = vsenv.abi_notice()
+            if notice:
+                self.warning("vapoursynth_updated", notice[0], notice[1])
+
+
 class Ctx:
     """Per-command output mode, emitter and cancel token."""
 
@@ -139,7 +157,7 @@ class Ctx:
         else:
             sink = TextSink(sys.stderr, self.verbose)
         self.sink = GuardedSink(sink, self.token)
-        self.em = Emitter(self.sink)
+        self.em = _NoticeEmitter(self.sink)
         self.guard: OutputGuard | None = None
         if long_running:
             runtime.on_hard_exit(self._hard_exit)

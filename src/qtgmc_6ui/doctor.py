@@ -3,7 +3,8 @@
 Checks (id -> title), each Status ok/warn/fail/skip with a hint:
   build_info        build-info.json present and readable
   python_abi        running python minor == build-info python minor
-  vapoursynth_abi   running core/api == build-info
+  vapoursynth_abi   API major equal and API minor not lower than the build's (FAIL otherwise);
+                    a different core release with the same API is a WARN (plugins stay compatible)
   vapoursynth_core  core creates with autoload disabled
   plugin:<name>     each bundled/repo plugin loads (namespace, identifier, version)
   pypkg:<name>      vsjetpack / jetpytools importable and version == build-info
@@ -105,8 +106,10 @@ def run(*, load_plugins: bool = True, smoke: bool = True) -> DoctorReport:
         vsp = [p for p in problems if "python" not in p]
         checks.append(DoctorCheck("python_abi", f"python {rep.runtime['python']} vs build {bi.python_version or '?'}",
                                   Status.FAIL if py else Status.OK, "; ".join(py), "reinstall/rebuild qtgmc-6ui" if py else ""))
+        notices = [] if vsp else vsenv.abi_warnings(bi)
         checks.append(DoctorCheck("vapoursynth_abi", f"vapoursynth {rep.runtime.get('vapoursynth')} {rep.runtime.get('api')} vs build R{bi.vapoursynth_core or '?'}",
-                                  Status.FAIL if vsp else Status.OK, "; ".join(vsp), "reinstall/rebuild qtgmc-6ui" if vsp else ""))
+                                  Status.FAIL if vsp else Status.WARN if notices else Status.OK, "; ".join(vsp or notices),
+                                  "reinstall/rebuild qtgmc-6ui" if vsp else ""))
         for p in vsenv.check_python_packages(bi):
             checks.append(DoctorCheck("pypkg", "python package versions", Status.WARN, p, "reinstall qtgmc-6ui"))
 
