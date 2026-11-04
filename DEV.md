@@ -16,7 +16,7 @@ Local test build from a working tree of this repository (needs `base-devel`; `-s
 
 ```
 packaging/local-build.sh -s            # tars the tree, runs makepkg in ~/.cache/qtgmc-6ui-build
-sudo pacman -U ~/.cache/qtgmc-6ui-build/qtgmc-6ui-0.4.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ~/.cache/qtgmc-6ui-build/qtgmc-6ui-0.4.1-1-x86_64.pkg.tar.zst
 qtgmc-6ui doctor
 ```
 
@@ -35,7 +35,7 @@ Four workflows run on GitHub. `ci.yml` runs on every push to master and every pu
 
 ## Changelog draft
 
-`cliff.toml` configures [git-cliff](https://github.com/orhun/git-cliff), which drafts the changelog of the next release from the commits since the last tag. Commits are grouped by area (GUI, Analysis, Pipeline and CLI, Internals, Packaging, CI and repository, Documentation, Tests) from the module prefix of each subject, with the prefix removed from the text; Conventional Commits types (`feat:`, `fix:`) get their own Added and Fixed groups if they are ever used. Release commits, fixups and merges are left out. Print the draft with `git cliff --unreleased --tag v0.4.0` (Arch: `pacman -S git-cliff`; elsewhere: `uvx git-cliff`) and edit it into the release commit description. The grouping is by area and not by Fixed or Changed, so the wording still needs a human.
+`cliff.toml` configures [git-cliff](https://github.com/orhun/git-cliff), which drafts the changelog of the next release from the commits since the last tag. Commits are grouped by area (GUI, Analysis, Pipeline and CLI, Internals, Packaging, CI and repository, Documentation, Tests) from the module prefix of each subject, with the prefix removed from the text; Conventional Commits types (`feat:`, `fix:`) get their own Added and Fixed groups if they are ever used. Release commits, fixups and merges are left out. Print the draft with `git cliff --unreleased --tag v0.4.1` (Arch: `pacman -S git-cliff`; elsewhere: `uvx git-cliff`) and edit it into the release commit description. The grouping is by area and not by Fixed or Changed, so the wording still needs a human.
 
 ## Releasing
 
