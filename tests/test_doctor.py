@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -28,7 +29,7 @@ def test_doctor_no_load(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     assert _check(rep, "tool:ffmpeg").status == Status.OK and _check(rep, "tool:ffprobe").status == Status.OK
     assert _check(rep, "pypkg:vsjetpack").detail == "2.2.6"
     assert _check(rep, "locale").status == Status.OK
-    assert rep.ok and rep.runtime["vapoursynth"] == "R80"
+    assert rep.ok and re.fullmatch(r"R\d+", rep.runtime["vapoursynth"])  # whatever Arch ships
     assert rep.environment["filesystem_encoding"].lower().replace("-", "") == "utf8"
     text = doctor.render_text(rep)
     assert "qtgmc-6UI doctor" in text and "[ ok ] tool:ffmpeg" in text and "OK: all checks passed" in text

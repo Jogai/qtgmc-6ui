@@ -1,6 +1,11 @@
 # mvutensils v9: meson; only the baseline library is built (the .avx2/.zn4
 # variants share the plugin id and are never loaded by qtgmc-6ui).
 recipe_build() {
+    # GCC 16 no longer puts isfinite into the global namespace through <cmath>; v10 spells it
+    # std::isfinite (same fix, nothing else in the file changed for it)
+    local f=$S/src/DepanStabilise.cpp
+    [[ $(grep -c '(isfinite(' "$f") -eq 4 ]] || die "mvutensils: isfinite patch does not match the source"
+    sed -i 's/(isfinite(/(std::isfinite(/' "$f"
     meson setup "$WORK/build" "$S" --prefix=/usr --buildtype=release --wrap-mode=nofallback
     ninja -C "$WORK/build" -j "$JOBS" mvutensils.so
 }

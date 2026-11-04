@@ -6,17 +6,17 @@ Background for people who want to know what is installed and why. Usage is in [R
 
 Rule: use the official Arch repositories (`core`, `extra`) when a package exists there; bundle the rest from pinned upstream sources. Never depend on AUR packages. Checked 2026-10-09 with `pacman -Si`/`-Ss`; re-check at every version bump and switch to the repo if something moved in. Sources are in `packaging/aur/PKGBUILD` (generated blocks from `packaging/plugins/plugins.json` and `uv.lock` via `packaging/sync-pkgbuild.py`; all `sha256sums` pinned except the project tarball until the first tag).
 
-Runtime `depends` (all from official repos; versions are those seen on 2026-10-09):
+Runtime `depends` (all from official repos; versions are those seen on 2026-11-04):
 
 | dependency | why |
 |---|---|
-| python 3.14.7, vapoursynth 80 (R80, API 4.3) | runtime, including the `vapoursynth` Python module. PyPI wheels are not used. |
+| python 3.14.9, vapoursynth 81 (R81, API 4.3) | runtime, including the `vapoursynth` Python module. PyPI wheels are not used. |
 | vapoursynth-plugin-bestsource R22 | source filter, loaded explicitly |
 | ffmpeg 9.0.2 | probe, idet/fieldmatch analysis, encoding (libx264, libx265, ffv1, flac, ...) |
 | pyside6 6.12.0, qt6-svg | GUI; qt6-svg for the SVG icon |
 | python-numpy, python-rich, python-typing_extensions | imported by the app and vsjetpack |
 | python-psutil 7.2.2 | process liveness (`osdep.process_alive`) for the stale temporary-master cleanup; also imported by vsjetpack |
-| python-platformdirs 4.13.0 | user config and cache base directories (`osdep.config_base`/`cache_base`) |
+| python-platformdirs 4.14.3 | user config and cache base directories (`osdep.config_base`/`cache_base`) |
 | python-cattrs 26.2.1 (pulls python-attrs 26.1.0) | (de)serialisation of every JSON/TOML contract in `models.py` and the strict profile key/type check |
 | python-tomli-w 1.2.0 | writes profile TOML files |
 | fftw, zimg, llvm22-libs, libgcc, libstdc++, glibc | runtime libraries of the bundled plugins |
@@ -30,7 +30,7 @@ Bundled native VapourSynth plugins (built in `build()`, installed to `/usr/lib/q
 |---|---|---|---|
 | akarin | 1.5.0, GitHub tag (Jaded-Encoding-Thaumaturgy) | LGPL-3.0-only (SwiftShader Reactor: Apache-2.0) | Expr/PropExpr for vsjetpack; not in repos. Built against `llvm22` (its meson refuses llvm 23) |
 | resize2 | 0.5.1, GitHub tag + patched zimg and graphengine (pinned commits) | LGPL-2.1-only (zimg, graphengine: WTFPL) | vskernels bob resizer; needs a patched zimg linked statically, so the repo `zimg` cannot replace it |
-| mvutensils | v9, GitHub tag (myrsloik) | GPL-2.0-or-later | motion analysis for QTempGaussMC. Pinned to v9: v10 breaks vsjetpack 2.2.6 |
+| mvutensils | v9, GitHub tag (myrsloik) | GPL-2.0-or-later | motion analysis for QTempGaussMC. Pinned to v9: v10 breaks vsjetpack 2.2.6. The recipe applies the `std::isfinite` fix from v10 so that v9 builds with GCC 16 |
 | znedi3 | r3.3, GitHub tag (sekrit-twc) + graphengine, vsxx (pinned commits) + `nnedi3_weights.bin` | GPL-2.0-only (vsxx: LGPL-2.1) | default NNEDI3 bobber; not in repos |
 | zsmooth | 0.20.0, GitHub tag (adworacz), zig deps pinned, FFTW 3.3.11 static | MIT AND GPL-2.0-or-later | repair/removegrain for the lossless stage |
 | dfttest2 | plugin 11.1.0 (PyPI sdist), python module 11.0.0 (PyPI wheel) | GPL-2.0-or-later (module: GPL-3.0-or-later; vectorclass: Apache-2.0) | optional denoise only |
