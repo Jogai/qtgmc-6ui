@@ -54,6 +54,9 @@ EMBEDDED = {
                "MIT"],        # text/fmt: {fmt} (MIT with binary-redistribution exception)
     "dfttest2": ["Apache-2.0"],  # vs-dfttest2/cpu_source/vectorclass/LICENSE
 }
+# Artwork shipped with the app: the icon pictogram (Streamline Pixel free icons, see the comment
+# in src/qtgmc_6ui/gui/resources/qtgmc-6ui.svg).
+ASSET_LICENSES = ["CC-BY-4.0"]
 # Bundled Python packages from uv.lock (checked against the wheels' licence files).
 PY_LICENSES = {"vsjetpack": "MIT", "jetpytools": "MIT"}
 # Plain names in plugins.json mean the version-only licence (no "or later" in the sources).
@@ -179,6 +182,7 @@ def licenses_block() -> str:
             if p["name"] not in PY_LICENSES:
                 raise SystemExit(f"sync-pkgbuild: licence of {p['name']} unknown: add it to PY_LICENSES")
             found.add(PY_LICENSES[p["name"]])
+    found.update(ASSET_LICENSES)
     found.discard(app)
     return "\n".join([
         "license=(" + " ".join(q(x) for x in [app, *sorted(found)]) + ")",

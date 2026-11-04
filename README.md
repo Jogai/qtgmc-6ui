@@ -121,6 +121,8 @@ The project is licensed under GPL-2.0-only.
 
 Bundled components (full texts installed in `/usr/share/licenses/qtgmc-6ui/<component>/`): GPL-2.0-only znedi3; GPL-2.0-or-later mvutensils, dfttest2, FFTW (static in zsmooth); LGPL-2.1-only resize2, vsxx, vapoursynth-zig; LGPL-3.0-only akarin; MIT zsmooth, fftw zig wrapper, {fmt}, vsjetpack, jetpytools; Apache-2.0 SwiftShader Reactor, vectorclass; WTFPL zimg, graphengine; GPL-3.0-or-later dfttest2 Python module.
 
+The app icon uses the pictogram `video-movies-set-equipment` from [Pixel free icons](https://github.com/webalys-hq/streamline-vectors) by Streamline, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); it was recoloured and placed on a background.
+
 ## Known limitations
 
 - Depending on your opinion of AI generated works.

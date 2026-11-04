@@ -6,6 +6,7 @@ pkgbase = qtgmc-6ui
 	arch = x86_64
 	license = GPL-2.0-only
 	license = Apache-2.0
+	license = CC-BY-4.0
 	license = GPL-2.0-or-later
 	license = GPL-3.0-or-later
 	license = LGPL-2.1-only

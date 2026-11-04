@@ -9,7 +9,7 @@ pkgdesc="QTGMC deinterlacer for archival video (VapourSynth) with a Qt6 GUI"
 arch=(x86_64)
 url="https://github.com/jogai/qtgmc-6ui"
 # BEGIN generated: licenses (packaging/sync-pkgbuild.py)
-license=('GPL-2.0-only' 'Apache-2.0' 'GPL-2.0-or-later' 'GPL-3.0-or-later' 'LGPL-2.1-only' 'LGPL-3.0-only' 'MIT' 'WTFPL')
+license=('GPL-2.0-only' 'Apache-2.0' 'CC-BY-4.0' 'GPL-2.0-or-later' 'GPL-3.0-or-later' 'LGPL-2.1-only' 'LGPL-3.0-only' 'MIT' 'WTFPL')
 _extra_licenses=('zimg-1ad1895d5ff0bbe69c61243f9996aede713d1b5f.tar.gz|COPYING|resize2/zimg-COPYING'
                  'graphengine-cb5b2ce13384ec2491f0c37256ea210034799f69.tar.gz|COPYING|resize2/graphengine-COPYING'
                  'graphengine-7bb77a5c062c610e7f44df6a59155cc3ab3e452a.tar.gz|COPYING|znedi3/graphengine-COPYING'

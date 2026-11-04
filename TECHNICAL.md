@@ -225,6 +225,12 @@ Single rate, the `faster`, `slower` and `placebo` presets, 4:1:1 and 4:2:2 10-bi
 | jetpytools 3.1.2 | Jaded-Encoding-Thaumaturgy/jetpytools, MIT | helper library that vsjetpack is built on |
 | dfttest2 11.0.0 | see dfttest2 above | `--denoise` only |
 
+### Artwork
+
+| asset | upstream, licence | changes |
+|---|---|---|
+| app icon (`src/qtgmc_6ui/gui/resources/qtgmc-6ui.svg` and the PNG renderings next to it) | pictogram `video-movies-set-equipment` from [Pixel free icons](https://github.com/webalys-hq/streamline-vectors) by Streamline, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | recoloured (Gruvbox palette), scaled and placed on a rounded background; the credit is also in the SVG |
+
 ### Standalone encoders and sox
 
 `kvazaar` and `sox` are `optdepends`. `x264` and `x265` come with `ffmpeg` and are detected at runtime like the others.
