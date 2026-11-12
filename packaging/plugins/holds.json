@@ -2,5 +2,7 @@
   "mvutensils": {"seen": "v10", "reason": "v10 breaks vsjetpack 2.2.6; revisit with the vs-jetpack rewrite"},
   "vszip": {"seen": "24.0.0", "reason": "needs Zig 0.17, which cannot build zsmooth 0.20.0"},
   "zig": {"seen": "0.17.1", "reason": "cannot build zsmooth 0.20.0 (rejects its build.zig.zon package hashes)"},
+  "dfttest2": {"seen": "11.1.1", "reason": "11.1.1 only adds a __future__ import to the Python module; plugin code unchanged"},
+  "vsjetpack": {"seen": "3.0.0", "reason": "3.0 is the QTempGaussMC rewrite (needs mvutensils v10 and vszip 24); the port is roadmap item 6"},
   "jetpytools": {"seen": "3.2.0", "reason": "compatible, held with vsjetpack 2.2.6"}
 }
